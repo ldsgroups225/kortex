@@ -6,6 +6,28 @@
     "todos": "Todos",
     "settings": "Settings"
   },
+  "admin": {
+    "title": "Admin Dashboard",
+    "analytics": "Analytics",
+    "contentMonitoring": "Content Monitoring",
+    "systemLogs": "System Logs",
+    "adminAccessOnly": "Admin Access Only",
+    "totalUsers": "Total Users",
+    "totalNotes": "Total Notes",
+    "totalSnippets": "Total Snippets",
+    "totalTodos": "Total Todos",
+    "activeUsers": "Active Users",
+    "last24Hours": "Last 24 hours",
+    "last7Days": "Last 7 days",
+    "topLanguages": "Top Languages",
+    "topTags": "Top Tags",
+    "contentType": "Content Type",
+    "searchContent": "Search content...",
+    "deleteContent": "Delete Content",
+    "deleteConfirm": "Are you sure you want to delete this {type}? This action cannot be undone.",
+    "recentActivity": "Recent System Activity",
+    "noContent": "No content found"
+  },
   "common": {
     "add": "Add",
     "edit": "Edit",

@@ -6,6 +6,28 @@
     "todos": "Tâches",
     "settings": "Paramètres"
   },
+  "admin": {
+    "title": "Tableau de bord Admin",
+    "analytics": "Analytiques",
+    "contentMonitoring": "Surveillance du contenu",
+    "systemLogs": "Journaux système",
+    "adminAccessOnly": "Accès admin uniquement",
+    "totalUsers": "Total utilisateurs",
+    "totalNotes": "Total notes",
+    "totalSnippets": "Total extraits",
+    "totalTodos": "Total tâches",
+    "activeUsers": "Utilisateurs actifs",
+    "last24Hours": "Dernières 24 heures",
+    "last7Days": "Derniers 7 jours",
+    "topLanguages": "Langues populaires",
+    "topTags": "Tags populaires",
+    "contentType": "Type de contenu",
+    "searchContent": "Rechercher du contenu...",
+    "deleteContent": "Supprimer le contenu",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce {type} ? Cette action ne peut pas être annulée.",
+    "recentActivity": "Activité système récente",
+    "noContent": "Aucun contenu trouvé"
+  },
   "common": {
     "add": "Ajouter",
     "edit": "Modifier",

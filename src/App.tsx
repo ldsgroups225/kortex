@@ -6,6 +6,7 @@ import { NotesPage } from "./components/NotesPage";
 import { SnippetsPage } from "./components/SnippetsPage";
 import { TodosPage } from "./components/TodosPage";
 import { SettingsPage } from "./components/SettingsPage";
+import { AdminDashboard } from "./components/AdminDashboard";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { KeyboardShortcuts } from "./components/KeyboardShortcuts";
 import { useState, useEffect, useRef } from "react";
@@ -16,13 +17,14 @@ import {
   CodeBracketIcon,
   CheckCircleIcon,
   Cog6ToothIcon,
+  ShieldCheckIcon,
   Bars3Icon,
   XMarkIcon,
   SunIcon,
   MoonIcon
 } from "@heroicons/react/24/outline";
 
-type Route = 'dashboard' | 'notes' | 'snippets' | 'todos' | 'settings';
+type Route = 'dashboard' | 'notes' | 'snippets' | 'todos' | 'settings' | 'admin';
 
 export default function App() {
   const [currentRoute, setCurrentRoute] = useState<Route>('dashboard');
@@ -135,6 +137,7 @@ function AuthenticatedApp({
     { name: t('navigation.snippets'), route: 'snippets' as Route, icon: CodeBracketIcon },
     { name: t('navigation.todos'), route: 'todos' as Route, icon: CheckCircleIcon },
     { name: t('navigation.settings'), route: 'settings' as Route, icon: Cog6ToothIcon },
+    ...(loggedInUser ? [{ name: 'Admin', route: 'admin' as Route, icon: ShieldCheckIcon }] : []),
   ];
 
   // For notes page, we want full height layout
@@ -402,6 +405,8 @@ function RouteContent({ route }: { route: Route }) {
       return <TodosPage />;
     case 'settings':
       return <SettingsPage />;
+    case 'admin':
+      return <AdminDashboard />;
     default:
       return <DashboardPage />;
   }

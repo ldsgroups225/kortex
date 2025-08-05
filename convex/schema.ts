@@ -9,37 +9,28 @@ const applicationTables = {
     content: v.string(),
     tags: v.array(v.string()),
     pinned: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
-    .index("by_user_and_pinned", ["userId", "pinned"])
-    .searchIndex("search_content", {
-      searchField: "content",
-      filterFields: ["userId"],
-    })
-    .searchIndex("search_title", {
-      searchField: "title",
-      filterFields: ["userId"],
-    }),
+    .index("by_creation_time", ["createdAt"])
+    .index("by_pinned", ["pinned"]),
 
   snippets: defineTable({
     userId: v.id("users"),
     title: v.string(),
     content: v.string(),
-    language: v.optional(v.string()),
+    language: v.string(),
     category: v.string(),
     pinned: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
-    .index("by_user_and_category", ["userId", "category"])
-    .index("by_user_and_pinned", ["userId", "pinned"])
-    .searchIndex("search_content", {
-      searchField: "content",
-      filterFields: ["userId", "category"],
-    })
-    .searchIndex("search_title", {
-      searchField: "title",
-      filterFields: ["userId", "category"],
-    }),
+    .index("by_language", ["language"])
+    .index("by_category", ["category"])
+    .index("by_creation_time", ["createdAt"])
+    .index("by_pinned", ["pinned"]),
 
   todos: defineTable({
     userId: v.id("users"),
@@ -51,16 +42,8 @@ const applicationTables = {
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
-    .index("by_user_and_status", ["userId", "status"])
-    .index("by_user_and_due_date", ["userId", "dueDate"])
-    .searchIndex("search_title", {
-      searchField: "title",
-      filterFields: ["userId", "status"],
-    })
-    .searchIndex("search_description", {
-      searchField: "description",
-      filterFields: ["userId", "status"],
-    }),
+    .index("by_status", ["status"])
+    .index("by_creation_time", ["createdAt"]),
 
   userPreferences: defineTable({
     userId: v.id("users"),
@@ -69,6 +52,18 @@ const applicationTables = {
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"]),
+
+  adminLogs: defineTable({
+    userId: v.optional(v.id("users")),
+    action: v.string(),
+    details: v.optional(v.string()),
+    timestamp: v.number(),
+    ipAddress: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+  })
+    .index("by_timestamp", ["timestamp"])
+    .index("by_user", ["userId"])
+    .index("by_action", ["action"]),
 };
 
 export default defineSchema({
