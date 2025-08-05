@@ -5,7 +5,9 @@ import { SignOutButton } from "./SignOutButton";
 import { NotesPage } from "./components/NotesPage";
 import { SnippetsPage } from "./components/SnippetsPage";
 import { TodosPage } from "./components/TodosPage";
+import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   HomeIcon,
   DocumentTextIcon,
@@ -77,13 +79,14 @@ function AuthenticatedApp({
   toggleDarkMode: () => void;
 }) {
   const loggedInUser = useQuery(api.auth.loggedInUser);
+  const { t } = useTranslation();
 
   const navigation = [
-    { name: 'Dashboard', route: 'dashboard' as Route, icon: HomeIcon },
-    { name: 'Notes', route: 'notes' as Route, icon: DocumentTextIcon },
-    { name: 'Snippets', route: 'snippets' as Route, icon: CodeBracketIcon },
-    { name: 'Todos', route: 'todos' as Route, icon: CheckCircleIcon },
-    { name: 'Settings', route: 'settings' as Route, icon: Cog6ToothIcon },
+    { name: t('navigation.dashboard'), route: 'dashboard' as Route, icon: HomeIcon },
+    { name: t('navigation.notes'), route: 'notes' as Route, icon: DocumentTextIcon },
+    { name: t('navigation.snippets'), route: 'snippets' as Route, icon: CodeBracketIcon },
+    { name: t('navigation.todos'), route: 'todos' as Route, icon: CheckCircleIcon },
+    { name: t('navigation.settings'), route: 'settings' as Route, icon: Cog6ToothIcon },
   ];
 
   // For notes page, we want full height layout
@@ -149,7 +152,7 @@ function AuthenticatedApp({
                 ) : (
                   <MoonIcon className="h-5 w-5 mr-3" />
                 )}
-                {darkMode ? 'Light Mode' : 'Dark Mode'}
+                {darkMode ? t('settings.lightMode') : t('settings.darkMode')}
               </button>
 
               <div className="flex items-center justify-between">
@@ -283,6 +286,10 @@ function AuthenticatedApp({
               {currentRoute}
             </h2>
           </div>
+
+          <div className="flex items-center space-x-4">
+            <LanguageSwitcher />
+          </div>
         </header>
 
         {/* Page content */}
@@ -295,21 +302,26 @@ function AuthenticatedApp({
 }
 
 function UnauthenticatedApp({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDarkMode: () => void }) {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="flex justify-between items-center max-w-7xl mx-auto">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">NotesApp</h1>
-          <button
-            onClick={toggleDarkMode}
-            className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-          >
-            {darkMode ? (
-              <SunIcon className="h-5 w-5" />
-            ) : (
-              <MoonIcon className="h-5 w-5" />
-            )}
-          </button>
+          <div className="flex items-center space-x-4">
+            <LanguageSwitcher />
+            <button
+              onClick={toggleDarkMode}
+              className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              {darkMode ? (
+                <SunIcon className="h-5 w-5" />
+              ) : (
+                <MoonIcon className="h-5 w-5" />
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -317,10 +329,10 @@ function UnauthenticatedApp({ darkMode, toggleDarkMode }: { darkMode: boolean; t
         <div className="w-full max-w-md mx-auto">
           <div className="text-center mb-8">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Welcome to NotesApp
+              {t('dashboard.welcome')}
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-400">
-              Organize your notes, snippets, and todos in one place
+              {t('dashboard.welcome')}
             </p>
           </div>
           <SignInForm />
@@ -348,6 +360,7 @@ function RouteContent({ route }: { route: Route }) {
 }
 
 function DashboardPage() {
+  const { t } = useTranslation();
   const notes = useQuery(api.notes.getUserNotes);
   const snippets = useQuery(api.snippets.getUserSnippets, {});
   const todos = useQuery(api.todos.getTodos);
@@ -359,8 +372,8 @@ function DashboardPage() {
           <div className="flex items-center">
             <DocumentTextIcon className="h-8 w-8 text-blue-500" />
             <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Notes</h3>
-              <p className="text-gray-600 dark:text-gray-400">{notes?.length || 0} notes</p>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('navigation.notes')}</h3>
+              <p className="text-gray-600 dark:text-gray-400">{notes?.length || 0} {t('navigation.notes').toLowerCase()}</p>
             </div>
           </div>
         </div>
@@ -369,8 +382,8 @@ function DashboardPage() {
           <div className="flex items-center">
             <CodeBracketIcon className="h-8 w-8 text-green-500" />
             <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Snippets</h3>
-              <p className="text-gray-600 dark:text-gray-400">{snippets?.length || 0} snippets</p>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('navigation.snippets')}</h3>
+              <p className="text-gray-600 dark:text-gray-400">{snippets?.length || 0} {t('navigation.snippets').toLowerCase()}</p>
             </div>
           </div>
         </div>
@@ -379,9 +392,9 @@ function DashboardPage() {
           <div className="flex items-center">
             <CheckCircleIcon className="h-8 w-8 text-purple-500" />
             <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Todos</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('navigation.todos')}</h3>
               <p className="text-gray-600 dark:text-gray-400">
-                {todos ? (todos.todo.length + todos.inProgress.length + todos.done.length) : 0} todos
+                {todos ? (todos.todo.length + todos.inProgress.length + todos.done.length) : 0} {t('navigation.todos').toLowerCase()}
               </p>
             </div>
           </div>
@@ -390,17 +403,17 @@ function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Notes</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('dashboard.recentNotes')}</h3>
           {notes && notes.length > 0 ? (
             <div className="space-y-3">
               {notes.slice(0, 5).map((note) => (
                 <div key={note._id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="flex-1 min-w-0">
                     <h4 className="font-medium text-gray-900 dark:text-white truncate">
-                      {note.title || 'Untitled Note'}
+                      {note.title || t('common.untitled')}
                     </h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                      {note.content.replace(/<[^>]*>/g, '').substring(0, 100) || 'No content'}
+                      {note.content.replace(/<[^>]*>/g, '').substring(0, 100) || t('notes.noContent')}
                     </p>
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 ml-4">
@@ -410,12 +423,12 @@ function DashboardPage() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-600 dark:text-gray-400">No notes yet</p>
+            <p className="text-gray-600 dark:text-gray-400">{t('notes.noNotes')}</p>
           )}
         </div>
 
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Snippets</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('dashboard.recentSnippets')}</h3>
           {snippets && snippets.length > 0 ? (
             <div className="space-y-3">
               {snippets.slice(0, 5).map((snippet) => (
@@ -442,12 +455,12 @@ function DashboardPage() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-600 dark:text-gray-400">No snippets yet</p>
+            <p className="text-gray-600 dark:text-gray-400">{t('snippets.noSnippets')}</p>
           )}
         </div>
 
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Todos</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('dashboard.recentTodos')}</h3>
           {todos && (todos.todo.length > 0 || todos.inProgress.length > 0) ? (
             <div className="space-y-3">
               {[...todos.todo, ...todos.inProgress]
@@ -477,7 +490,7 @@ function DashboardPage() {
                 ))}
             </div>
           ) : (
-            <p className="text-gray-600 dark:text-gray-400">No todos yet</p>
+            <p className="text-gray-600 dark:text-gray-400">{t('todos.noTodos')}</p>
           )}
         </div>
       </div>
@@ -488,17 +501,19 @@ function DashboardPage() {
 
 
 function SettingsPage() {
+  const { t } = useTranslation();
+
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Settings</h3>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('settings.title')}</h3>
 
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Account Settings</h4>
+        <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">{t('settings.account')}</h4>
         <p className="text-gray-600 dark:text-gray-400">Account settings will be available here</p>
       </div>
 
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Preferences</h4>
+        <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">{t('settings.appearance')}</h4>
         <p className="text-gray-600 dark:text-gray-400">App preferences will be available here</p>
       </div>
     </div>

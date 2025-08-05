@@ -4,6 +4,7 @@ import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { RichTextEditor } from './RichTextEditor';
 import { TagInput } from './TagInput';
+import { useTranslation } from 'react-i18next';
 import {
   PlusIcon,
   MagnifyingGlassIcon,
@@ -14,6 +15,7 @@ import {
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
 export function NotesPage() {
+  const { t } = useTranslation();
   const [selectedNoteId, setSelectedNoteId] = useState<Id<"notes"> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -22,7 +24,7 @@ export function NotesPage() {
   // Queries
   const notes = useQuery(api.notes.getUserNotes);
   const searchResults = useQuery(api.notes.searchNotes, { query: searchQuery });
-  const selectedNote = useQuery(api.notes.getNote, 
+  const selectedNote = useQuery(api.notes.getNote,
     selectedNoteId ? { noteId: selectedNoteId } : "skip"
   );
   const userTags = useQuery(api.notes.getUserTags) || [];
@@ -71,7 +73,7 @@ export function NotesPage() {
 
   const handleCreateNote = async () => {
     if (isCreating) return;
-    
+
     setIsCreating(true);
     try {
       const noteId = await createNote({
@@ -170,11 +172,10 @@ export function NotesPage() {
                 <div
                   key={note._id}
                   onClick={() => setSelectedNoteId(note._id)}
-                  className={`p-3 rounded-lg cursor-pointer transition-colors group ${
-                    selectedNoteId === note._id
-                      ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
+                  className={`p-3 rounded-lg cursor-pointer transition-colors group ${selectedNoteId === note._id
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="font-medium text-gray-900 dark:text-white truncate flex-1">
@@ -251,7 +252,7 @@ export function NotesPage() {
                 className="w-full text-2xl font-bold bg-transparent border-none outline-none text-gray-900 dark:text-white placeholder-gray-500"
                 placeholder="Note title..."
               />
-              
+
               <TagInput
                 tags={pendingChanges.tags ?? selectedNote.tags}
                 onChange={updateTags}

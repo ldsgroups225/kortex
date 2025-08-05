@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
+import { useTranslation } from 'react-i18next';
 import {
   PlusIcon,
   MagnifyingGlassIcon,
@@ -33,6 +34,7 @@ const LANGUAGES = [
 const DEFAULT_CATEGORIES = ['General', 'Code', 'Prompts', 'Templates', 'Commands'];
 
 export function SnippetsPage() {
+  const { t } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showEditor, setShowEditor] = useState(false);
@@ -41,10 +43,10 @@ export function SnippetsPage() {
   const [copiedSnippet, setCopiedSnippet] = useState<Id<"snippets"> | null>(null);
 
   // Queries
-  const snippets = useQuery(api.snippets.getUserSnippets, { 
-    category: selectedCategory || undefined 
+  const snippets = useQuery(api.snippets.getUserSnippets, {
+    category: selectedCategory || undefined
   });
-  const searchResults = useQuery(api.snippets.searchSnippets, { 
+  const searchResults = useQuery(api.snippets.searchSnippets, {
     query: searchQuery,
     category: selectedCategory || undefined
   });
@@ -241,7 +243,7 @@ export function SnippetsPage() {
               <div className="p-4">
                 <pre className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 p-3 rounded border overflow-hidden">
                   <code className="line-clamp-4">
-                    {snippet.content.length > 200 
+                    {snippet.content.length > 200
                       ? snippet.content.substring(0, 200) + '...'
                       : snippet.content
                     }
@@ -255,7 +257,7 @@ export function SnippetsPage() {
                   <ClockIcon className="h-3 w-3" />
                   {formatDate(snippet._creationTime)}
                 </div>
-                
+
                 <button
                   onClick={() => copyToClipboard(snippet.content, snippet._id)}
                   className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors flex items-center gap-1"
@@ -367,7 +369,7 @@ function SnippetEditor({ snippet, categories, onSave, onCancel }: SnippetEditorP
 
   const handleSave = async () => {
     if (!title.trim() || !content.trim()) return;
-    
+
     setIsSaving(true);
     try {
       await onSave({
