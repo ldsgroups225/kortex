@@ -3,6 +3,7 @@ import { api } from "../../convex/_generated/api";
 import { useState, useRef, useEffect } from "react";
 import { SearchBar } from './SearchBar';
 import { FilterBar, FilterConfig } from './FilterBar';
+import { CopyButton } from './CopyButton';
 import { useTranslation } from "react-i18next";
 import {
   PlusIcon,
@@ -347,6 +348,10 @@ export function TodosPage() {
             </div>
 
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <CopyButton
+                content={`${todo.title}${todo.description ? `\n\n${todo.description}` : ''}`}
+                size="sm"
+              />
               <button
                 onClick={() => handleEditTodo(todo)}
                 className="p-1 text-gray-400 hover:text-blue-500 transition-colors"

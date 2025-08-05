@@ -161,6 +161,8 @@
     "deleteAccount": "Supprimer le compte",
     "deleteAccountConfirm": "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action ne peut pas être annulée.",
     "deleteAccountDescription": "Une fois votre compte supprimé, il n'y a pas de retour en arrière possible. Veuillez être certain.",
+    "exportData": "Exporter les données",
+    "importData": "Importer les données",
     "languages": {
       "en": "English",
       "fr": "Français"

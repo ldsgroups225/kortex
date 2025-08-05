@@ -161,6 +161,8 @@
     "deleteAccount": "Delete Account",
     "deleteAccountConfirm": "Are you sure you want to delete your account? This action cannot be undone.",
     "deleteAccountDescription": "Once you delete your account, there is no going back. Please be certain.",
+    "exportData": "Export Data",
+    "importData": "Import Data",
     "languages": {
       "en": "English",
       "fr": "Français"

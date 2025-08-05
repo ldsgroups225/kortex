@@ -5,6 +5,7 @@ import { Id } from '../../convex/_generated/dataModel';
 import { SearchBar } from './SearchBar';
 import { FilterBar, FilterConfig } from './FilterBar';
 import { TagBadge } from './TagBadge';
+import { CopyButton } from './CopyButton';
 import { useTranslation } from 'react-i18next';
 import {
   PlusIcon,
@@ -321,23 +322,12 @@ export function SnippetsPage() {
                   {formatDate(snippet._creationTime)}
                 </div>
 
-                <button
-                  onClick={() => void copyToClipboard(snippet.content, snippet._id)}
-                  className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors flex items-center gap-1"
-                  title="Copy to clipboard"
-                >
-                  {copiedSnippet === snippet._id ? (
-                    <>
-                      <CheckIcon className="h-3 w-3" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <DocumentDuplicateIcon className="h-3 w-3" />
-                      Copy
-                    </>
-                  )}
-                </button>
+                <CopyButton
+                  content={snippet.content}
+                  variant="button"
+                  size="sm"
+                  showText={true}
+                />
               </div>
             </div>
           ))}

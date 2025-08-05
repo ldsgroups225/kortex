@@ -7,7 +7,8 @@ import { SnippetsPage } from "./components/SnippetsPage";
 import { TodosPage } from "./components/TodosPage";
 import { SettingsPage } from "./components/SettingsPage";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
-import { useState, useEffect } from "react";
+import { KeyboardShortcuts } from "./components/KeyboardShortcuts";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   HomeIcon,
@@ -60,8 +61,35 @@ export default function App() {
     document.documentElement.classList.toggle('dark', newDarkMode);
   };
 
+  // Keyboard shortcuts refs
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const handleCopyLastSelected = () => {
+    // This would copy the last selected note/snippet/todo
+    // Implementation depends on the current route and selected item
+    console.log('Copy last selected item');
+  };
+
+  const handleCreateNote = () => {
+    if (currentRoute === 'notes') {
+      // Trigger note creation
+      console.log('Create new note');
+    }
+  };
+
+  const handleFocusSearch = () => {
+    if (searchRef.current) {
+      searchRef.current.focus();
+    }
+  };
+
   return (
     <div className={`min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors`}>
+      <KeyboardShortcuts
+        onCopyLastSelected={handleCopyLastSelected}
+        onCreateNote={handleCreateNote}
+        onFocusSearch={handleFocusSearch}
+      />
       <Authenticated>
         <AuthenticatedApp
           currentRoute={currentRoute}
@@ -70,6 +98,7 @@ export default function App() {
           setSidebarOpen={setSidebarOpen}
           darkMode={darkMode}
           toggleDarkMode={toggleDarkMode}
+          searchRef={searchRef}
         />
       </Authenticated>
 
@@ -86,7 +115,8 @@ function AuthenticatedApp({
   sidebarOpen,
   setSidebarOpen,
   darkMode,
-  toggleDarkMode
+  toggleDarkMode,
+  searchRef
 }: {
   currentRoute: Route;
   setCurrentRoute: (route: Route) => void;
@@ -94,6 +124,7 @@ function AuthenticatedApp({
   setSidebarOpen: (open: boolean) => void;
   darkMode: boolean;
   toggleDarkMode: () => void;
+  searchRef?: React.RefObject<HTMLInputElement | null>;
 }) {
   const loggedInUser = useQuery(api.auth.loggedInUser);
   const { t } = useTranslation();

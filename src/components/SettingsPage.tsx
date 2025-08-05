@@ -3,6 +3,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useState, useEffect } from 'react';
 import { useAuthActions } from "@convex-dev/auth/react";
+import { DataPortability } from './DataPortability';
 import {
   SunIcon,
   MoonIcon,
@@ -208,6 +209,9 @@ export function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Data Portability */}
+      <DataPortability />
 
       {/* Danger Zone */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-red-200 dark:border-red-800">

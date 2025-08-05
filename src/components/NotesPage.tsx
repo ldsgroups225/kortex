@@ -7,6 +7,7 @@ import { TagInput } from './TagInput';
 import { SearchBar } from './SearchBar';
 import { FilterBar, FilterConfig } from './FilterBar';
 import { TagBadge } from './TagBadge';
+import { CopyButton } from './CopyButton';
 import { useTranslation } from 'react-i18next';
 import {
   PlusIcon,
@@ -322,13 +323,20 @@ export function NotesPage() {
           <>
             {/* Note Header */}
             <div className="p-6 border-b border-gray-200 dark:border-gray-700 space-y-4">
-              <input
-                type="text"
-                value={pendingChanges.title ?? selectedNote.title}
-                onChange={(e) => updateTitle(e.target.value)}
-                className="w-full text-2xl font-bold bg-transparent border-none outline-none text-gray-900 dark:text-white placeholder-gray-500"
-                placeholder="Note title..."
-              />
+              <div className="flex items-center justify-between">
+                <input
+                  type="text"
+                  value={pendingChanges.title ?? selectedNote.title}
+                  onChange={(e) => updateTitle(e.target.value)}
+                  className="flex-1 text-2xl font-bold bg-transparent border-none outline-none text-gray-900 dark:text-white placeholder-gray-500"
+                  placeholder="Note title..."
+                />
+                <CopyButton
+                  content={pendingChanges.title ?? selectedNote.title}
+                  size="sm"
+                  className="ml-2"
+                />
+              </div>
 
               <TagInput
                 tags={pendingChanges.tags ?? selectedNote.tags}
@@ -337,16 +345,23 @@ export function NotesPage() {
                 placeholder="Add tags..."
               />
 
-              <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                <span>Created: {formatDate(selectedNote._creationTime)}</span>
-                <span>•</span>
-                <span>Updated: {formatDate(selectedNote._creationTime)}</span>
-                {Object.keys(pendingChanges).length > 0 && (
-                  <>
-                    <span>•</span>
-                    <span className="text-blue-600 dark:text-blue-400">Saving...</span>
-                  </>
-                )}
+              <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                <div className="flex items-center gap-4">
+                  <span>Created: {formatDate(selectedNote._creationTime)}</span>
+                  <span>•</span>
+                  <span>Updated: {formatDate(selectedNote._creationTime)}</span>
+                  {Object.keys(pendingChanges).length > 0 && (
+                    <>
+                      <span>•</span>
+                      <span className="text-blue-600 dark:text-blue-400">Saving...</span>
+                    </>
+                  )}
+                </div>
+                <CopyButton
+                  content={pendingChanges.content ?? selectedNote.content}
+                  size="sm"
+                  variant="text"
+                />
               </div>
             </div>
 
