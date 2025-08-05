@@ -5,6 +5,7 @@ import { SignOutButton } from "./SignOutButton";
 import { NotesPage } from "./components/NotesPage";
 import { SnippetsPage } from "./components/SnippetsPage";
 import { TodosPage } from "./components/TodosPage";
+import { SettingsPage } from "./components/SettingsPage";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,15 +27,31 @@ export default function App() {
   const [currentRoute, setCurrentRoute] = useState<Route>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const userPreferences = useQuery(api.userPreferences.getUserPreferences);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const shouldUseDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
+    if (userPreferences) {
+      const { theme } = userPreferences;
+      let shouldUseDark = false;
 
-    setDarkMode(shouldUseDark);
-    document.documentElement.classList.toggle('dark', shouldUseDark);
-  }, []);
+      if (theme === 'system') {
+        shouldUseDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      } else {
+        shouldUseDark = theme === 'dark';
+      }
+
+      setDarkMode(shouldUseDark);
+      document.documentElement.classList.toggle('dark', shouldUseDark);
+    } else {
+      // Fallback to localStorage for unauthenticated users
+      const savedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const shouldUseDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
+
+      setDarkMode(shouldUseDark);
+      document.documentElement.classList.toggle('dark', shouldUseDark);
+    }
+  }, [userPreferences]);
 
   const toggleDarkMode = () => {
     const newDarkMode = !darkMode;
@@ -500,22 +517,4 @@ function DashboardPage() {
 
 
 
-function SettingsPage() {
-  const { t } = useTranslation();
 
-  return (
-    <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('settings.title')}</h3>
-
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">{t('settings.account')}</h4>
-        <p className="text-gray-600 dark:text-gray-400">Account settings will be available here</p>
-      </div>
-
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">{t('settings.appearance')}</h4>
-        <p className="text-gray-600 dark:text-gray-400">App preferences will be available here</p>
-      </div>
-    </div>
-  );
-}

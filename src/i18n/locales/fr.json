@@ -146,12 +146,17 @@
     "title": "Paramètres",
     "appearance": "Apparence",
     "language": "Langue",
+    "theme": "Thème",
     "darkMode": "Mode sombre",
     "lightMode": "Mode clair",
     "system": "Système",
     "account": "Compte",
     "signOut": "Se déconnecter",
     "signOutConfirm": "Êtes-vous sûr de vouloir vous déconnecter ?",
+    "dangerZone": "Zone dangereuse",
+    "deleteAccount": "Supprimer le compte",
+    "deleteAccountConfirm": "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action ne peut pas être annulée.",
+    "deleteAccountDescription": "Une fois votre compte supprimé, il n'y a pas de retour en arrière possible. Veuillez être certain.",
     "languages": {
       "en": "English",
       "fr": "Français"

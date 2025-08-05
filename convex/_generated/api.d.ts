@@ -19,6 +19,7 @@ import type * as notes from "../notes.js";
 import type * as router from "../router.js";
 import type * as snippets from "../snippets.js";
 import type * as todos from "../todos.js";
+import type * as userPreferences from "../userPreferences.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   router: typeof router;
   snippets: typeof snippets;
   todos: typeof todos;
+  userPreferences: typeof userPreferences;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

@@ -61,6 +61,14 @@ const applicationTables = {
       searchField: "description",
       filterFields: ["userId", "status"],
     }),
+
+  userPreferences: defineTable({
+    userId: v.id("users"),
+    theme: v.union(v.literal("light"), v.literal("dark"), v.literal("system")),
+    language: v.union(v.literal("en"), v.literal("fr")),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"]),
 };
 
 export default defineSchema({

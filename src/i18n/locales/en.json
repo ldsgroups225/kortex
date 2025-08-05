@@ -146,12 +146,17 @@
     "title": "Settings",
     "appearance": "Appearance",
     "language": "Language",
+    "theme": "Theme",
     "darkMode": "Dark Mode",
     "lightMode": "Light Mode",
     "system": "System",
     "account": "Account",
     "signOut": "Sign Out",
     "signOutConfirm": "Are you sure you want to sign out?",
+    "dangerZone": "Danger Zone",
+    "deleteAccount": "Delete Account",
+    "deleteAccountConfirm": "Are you sure you want to delete your account? This action cannot be undone.",
+    "deleteAccountDescription": "Once you delete your account, there is no going back. Please be certain.",
     "languages": {
       "en": "English",
       "fr": "Français"
