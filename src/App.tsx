@@ -4,12 +4,13 @@ import { SignInForm } from "./SignInForm";
 import { SignOutButton } from "./SignOutButton";
 import { NotesPage } from "./components/NotesPage";
 import { SnippetsPage } from "./components/SnippetsPage";
+import { TodosPage } from "./components/TodosPage";
 import { useState, useEffect } from "react";
-import { 
-  HomeIcon, 
-  DocumentTextIcon, 
-  CodeBracketIcon, 
-  CheckCircleIcon, 
+import {
+  HomeIcon,
+  DocumentTextIcon,
+  CodeBracketIcon,
+  CheckCircleIcon,
   Cog6ToothIcon,
   Bars3Icon,
   XMarkIcon,
@@ -28,7 +29,7 @@ export default function App() {
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const shouldUseDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
-    
+
     setDarkMode(shouldUseDark);
     document.documentElement.classList.toggle('dark', shouldUseDark);
   }, []);
@@ -43,7 +44,7 @@ export default function App() {
   return (
     <div className={`min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors`}>
       <Authenticated>
-        <AuthenticatedApp 
+        <AuthenticatedApp
           currentRoute={currentRoute}
           setCurrentRoute={setCurrentRoute}
           sidebarOpen={sidebarOpen}
@@ -52,7 +53,7 @@ export default function App() {
           toggleDarkMode={toggleDarkMode}
         />
       </Authenticated>
-      
+
       <Unauthenticated>
         <UnauthenticatedApp darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
       </Unauthenticated>
@@ -60,13 +61,13 @@ export default function App() {
   );
 }
 
-function AuthenticatedApp({ 
-  currentRoute, 
-  setCurrentRoute, 
-  sidebarOpen, 
+function AuthenticatedApp({
+  currentRoute,
+  setCurrentRoute,
+  sidebarOpen,
   setSidebarOpen,
   darkMode,
-  toggleDarkMode 
+  toggleDarkMode
 }: {
   currentRoute: Route;
   setCurrentRoute: (route: Route) => void;
@@ -91,7 +92,7 @@ function AuthenticatedApp({
       <div className="flex h-screen">
         {/* Mobile sidebar overlay */}
         {sidebarOpen && (
-          <div 
+          <div
             className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
@@ -150,7 +151,7 @@ function AuthenticatedApp({
                 )}
                 {darkMode ? 'Light Mode' : 'Dark Mode'}
               </button>
-              
+
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
@@ -173,11 +174,11 @@ function AuthenticatedApp({
             >
               <Bars3Icon className="h-6 w-6" />
             </button>
-            
+
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">
               Notes
             </h2>
-            
+
             <div className="w-10" /> {/* Spacer */}
           </header>
 
@@ -194,7 +195,7 @@ function AuthenticatedApp({
     <div className="flex h-screen">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -253,7 +254,7 @@ function AuthenticatedApp({
               )}
               {darkMode ? 'Light Mode' : 'Dark Mode'}
             </button>
-            
+
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
@@ -276,7 +277,7 @@ function AuthenticatedApp({
           >
             <Bars3Icon className="h-6 w-6" />
           </button>
-          
+
           <div className="flex-1 lg:ml-0">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white capitalize">
               {currentRoute}
@@ -311,7 +312,7 @@ function UnauthenticatedApp({ darkMode, toggleDarkMode }: { darkMode: boolean; t
           </button>
         </div>
       </header>
-      
+
       <main className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md mx-auto">
           <div className="text-center mb-8">
@@ -349,7 +350,8 @@ function RouteContent({ route }: { route: Route }) {
 function DashboardPage() {
   const notes = useQuery(api.notes.getUserNotes);
   const snippets = useQuery(api.snippets.getUserSnippets, {});
-  
+  const todos = useQuery(api.todos.getTodos);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -362,7 +364,7 @@ function DashboardPage() {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="flex items-center">
             <CodeBracketIcon className="h-8 w-8 text-green-500" />
@@ -372,19 +374,21 @@ function DashboardPage() {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="flex items-center">
             <CheckCircleIcon className="h-8 w-8 text-purple-500" />
             <div className="ml-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Todos</h3>
-              <p className="text-gray-600 dark:text-gray-400">0 todos</p>
+              <p className="text-gray-600 dark:text-gray-400">
+                {todos ? (todos.todo.length + todos.inProgress.length + todos.done.length) : 0} todos
+              </p>
             </div>
           </div>
         </div>
       </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Notes</h3>
           {notes && notes.length > 0 ? (
@@ -441,40 +445,58 @@ function DashboardPage() {
             <p className="text-gray-600 dark:text-gray-400">No snippets yet</p>
           )}
         </div>
+
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Todos</h3>
+          {todos && (todos.todo.length > 0 || todos.inProgress.length > 0) ? (
+            <div className="space-y-3">
+              {[...todos.todo, ...todos.inProgress]
+                .sort((a, b) => b._creationTime - a._creationTime)
+                .slice(0, 5)
+                .map((todo) => (
+                  <div key={todo._id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${todo.status === 'todo' ? 'bg-blue-500' :
+                          todo.status === 'in_progress' ? 'bg-yellow-500' : 'bg-green-500'
+                          }`} />
+                        <h4 className="font-medium text-gray-900 dark:text-white truncate">
+                          {todo.title}
+                        </h4>
+                      </div>
+                      {todo.description && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate mt-1">
+                          {todo.description}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 ml-4">
+                      {new Date(todo._creationTime).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <p className="text-gray-600 dark:text-gray-400">No todos yet</p>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function TodosPage() {
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Todo List</h3>
-        <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-          New Todo
-        </button>
-      </div>
-      
-      <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-        <CheckCircleIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No todos yet</h3>
-        <p className="text-gray-600 dark:text-gray-400">Add your first todo to stay organized</p>
-      </div>
-    </div>
-  );
-}
+
 
 function SettingsPage() {
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Settings</h3>
-      
+
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
         <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Account Settings</h4>
         <p className="text-gray-600 dark:text-gray-400">Account settings will be available here</p>
       </div>
-      
+
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
         <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Preferences</h4>
         <p className="text-gray-600 dark:text-gray-400">App preferences will be available here</p>

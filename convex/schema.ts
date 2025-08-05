@@ -17,10 +17,10 @@ const applicationTables = {
       filterFields: ["userId"],
     })
     .searchIndex("search_title", {
-      searchField: "title", 
+      searchField: "title",
       filterFields: ["userId"],
     }),
-  
+
   snippets: defineTable({
     userId: v.id("users"),
     title: v.string(),
@@ -39,6 +39,27 @@ const applicationTables = {
     .searchIndex("search_title", {
       searchField: "title",
       filterFields: ["userId", "category"],
+    }),
+
+  todos: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    description: v.optional(v.string()),
+    status: v.union(v.literal("todo"), v.literal("in_progress"), v.literal("done")),
+    dueDate: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_and_status", ["userId", "status"])
+    .index("by_user_and_due_date", ["userId", "dueDate"])
+    .searchIndex("search_title", {
+      searchField: "title",
+      filterFields: ["userId", "status"],
+    })
+    .searchIndex("search_description", {
+      searchField: "description",
+      filterFields: ["userId", "status"],
     }),
 };
 
