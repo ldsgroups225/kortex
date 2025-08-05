@@ -18,7 +18,7 @@ export const getUserSnippets = query({
     if (args.category) {
       query = ctx.db
         .query("snippets")
-        .withIndex("by_user_and_category", (q) => 
+        .withIndex("by_user_and_category", (q) =>
           q.eq("userId", userId).eq("category", args.category!)
         );
     }
@@ -54,7 +54,7 @@ export const getSnippet = query({
 
 // Search snippets by title and content
 export const searchSnippets = query({
-  args: { 
+  args: {
     query: v.string(),
     category: v.optional(v.string())
   },
@@ -94,7 +94,7 @@ export const searchSnippets = query({
     // Combine and deduplicate results
     const allResults = [...titleResults, ...contentResults];
     const uniqueResults = allResults.filter(
-      (snippet, index, self) => 
+      (snippet, index, self) =>
         index === self.findIndex((s) => s._id === snippet._id)
     );
 
@@ -120,13 +120,16 @@ export const createSnippet = mutation({
       throw new Error("Not authenticated");
     }
 
+    const now = Date.now();
     const snippetId = await ctx.db.insert("snippets", {
       userId,
       title: args.title || "Untitled Snippet",
       content: args.content || "",
-      language: args.language,
+      language: args.language || "text",
       category: args.category || "General",
       pinned: false,
+      createdAt: now,
+      updatedAt: now,
     });
 
     return snippetId;
@@ -218,7 +221,7 @@ export const getUserCategories = query({
 
     const allCategories = snippets.map((snippet) => snippet.category);
     const uniqueCategories = [...new Set(allCategories)].sort();
-    
+
     return uniqueCategories;
   },
 });

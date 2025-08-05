@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id } from "./_generated/dataModel";
 
 /**
@@ -16,8 +17,8 @@ export const getTodos = query({
       description: v.optional(v.string()),
       status: v.union(v.literal("todo"), v.literal("in_progress"), v.literal("done")),
       dueDate: v.optional(v.number()),
-      createdAt: v.number(),
-      updatedAt: v.number(),
+      createdAt: v.optional(v.number()),
+      updatedAt: v.optional(v.number()),
     })),
     inProgress: v.array(v.object({
       _id: v.id("todos"),
@@ -27,8 +28,8 @@ export const getTodos = query({
       description: v.optional(v.string()),
       status: v.union(v.literal("todo"), v.literal("in_progress"), v.literal("done")),
       dueDate: v.optional(v.number()),
-      createdAt: v.number(),
-      updatedAt: v.number(),
+      createdAt: v.optional(v.number()),
+      updatedAt: v.optional(v.number()),
     })),
     done: v.array(v.object({
       _id: v.id("todos"),
@@ -38,17 +39,15 @@ export const getTodos = query({
       description: v.optional(v.string()),
       status: v.union(v.literal("todo"), v.literal("in_progress"), v.literal("done")),
       dueDate: v.optional(v.number()),
-      createdAt: v.number(),
-      updatedAt: v.number(),
+      createdAt: v.optional(v.number()),
+      updatedAt: v.optional(v.number()),
     })),
   }),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
       throw new Error("Not authenticated");
     }
-
-    const userId = identity.subject as Id<"users">;
 
     const [todo, inProgress, done] = await Promise.all([
       ctx.db
@@ -89,12 +88,11 @@ export const createTodo = mutation({
   },
   returns: v.id("todos"),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
       throw new Error("Not authenticated");
     }
 
-    const userId = identity.subject as Id<"users">;
     const now = Date.now();
 
     return await ctx.db.insert("todos", {
@@ -122,12 +120,11 @@ export const updateTodo = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
       throw new Error("Not authenticated");
     }
 
-    const userId = identity.subject as Id<"users">;
     const todo = await ctx.db.get(args.id);
 
     if (!todo || todo.userId !== userId) {
@@ -154,12 +151,11 @@ export const deleteTodo = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
       throw new Error("Not authenticated");
     }
 
-    const userId = identity.subject as Id<"users">;
     const todo = await ctx.db.get(args.id);
 
     if (!todo || todo.userId !== userId) {
@@ -180,12 +176,11 @@ export const toggleTodoStatus = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
       throw new Error("Not authenticated");
     }
 
-    const userId = identity.subject as Id<"users">;
     const todo = await ctx.db.get(args.id);
 
     if (!todo || todo.userId !== userId) {

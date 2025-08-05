@@ -75,7 +75,7 @@ export const searchNotes = query({
     // Combine and deduplicate results
     const allResults = [...titleResults, ...contentResults];
     const uniqueResults = allResults.filter(
-      (note, index, self) => 
+      (note, index, self) =>
         index === self.findIndex((n) => n._id === note._id)
     );
 
@@ -100,12 +100,15 @@ export const createNote = mutation({
       throw new Error("Not authenticated");
     }
 
+    const now = Date.now();
     const noteId = await ctx.db.insert("notes", {
       userId,
       title: args.title || "Untitled Note",
       content: args.content || "",
       tags: args.tags || [],
       pinned: false,
+      createdAt: now,
+      updatedAt: now,
     });
 
     return noteId;
@@ -195,7 +198,7 @@ export const getUserTags = query({
 
     const allTags = notes.flatMap((note) => note.tags);
     const uniqueTags = [...new Set(allTags)].sort();
-    
+
     return uniqueTags;
   },
 });
