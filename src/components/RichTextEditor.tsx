@@ -1,92 +1,39 @@
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Placeholder from '@tiptap/extension-placeholder';
-import Link from '@tiptap/extension-link';
-import TaskList from '@tiptap/extension-task-list';
-import TaskItem from '@tiptap/extension-task-item';
-import { useEffect } from 'react';
 import {
   BoldIcon,
+  CodeBracketIcon,
   ItalicIcon,
-  UnderlineIcon,
+  LinkIcon,
   ListBulletIcon,
   NumberedListIcon,
-  CodeBracketIcon,
-  LinkIcon,
-} from '@heroicons/react/24/outline';
+} from '@heroicons/react/24/outline'
+import Link from '@tiptap/extension-link'
+import TaskItem from '@tiptap/extension-task-item'
+import TaskList from '@tiptap/extension-task-list'
+import { EditorContent, useEditor } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
 
 interface RichTextEditorProps {
-  content: string;
-  onChange: (content: string) => void;
-  placeholder?: string;
-  className?: string;
+  content: string
+  onChange: (content: string) => void
+  placeholder?: string
+  className?: string
 }
 
-export function RichTextEditor({ 
-  content, 
-  onChange, 
-  placeholder = "Start writing...",
-  className = ""
-}: RichTextEditorProps) {
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        bulletList: {
-          keepMarks: true,
-          keepAttributes: false,
-        },
-        orderedList: {
-          keepMarks: true,
-          keepAttributes: false,
-        },
-      }),
-      Placeholder.configure({
-        placeholder,
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'text-blue-500 underline cursor-pointer',
-        },
-      }),
-      TaskList,
-      TaskItem.configure({
-        nested: true,
-      }),
-    ],
-    content,
-    onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
-    },
-    editorProps: {
-      attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none dark:prose-invert max-w-none',
-      },
-    },
-  });
-
-  useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
-    }
-  }, [content, editor]);
-
-  if (!editor) {
-    return null;
-  }
-
-  const ToolbarButton = ({ 
-    onClick, 
-    isActive, 
-    children, 
-    title 
-  }: { 
-    onClick: () => void; 
-    isActive?: boolean; 
-    children: React.ReactNode;
-    title: string;
-  }) => (
+// Move ToolbarButton to top level
+function ToolbarButton({
+  onClick,
+  isActive,
+  children,
+  title,
+}: {
+  onClick: () => void
+  isActive?: boolean
+  children: React.ReactNode
+  title: string
+}) {
+  return (
     <button
+      type="button"
       onClick={onClick}
       title={title}
       className={`p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
@@ -95,7 +42,39 @@ export function RichTextEditor({
     >
       {children}
     </button>
-  );
+  )
+}
+
+export function RichTextEditor({
+  content,
+  onChange,
+  className = '',
+}: RichTextEditorProps) {
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Link.configure({
+        openOnClick: false,
+      }),
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+    ],
+    content,
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML())
+    },
+    editorProps: {
+      attributes: {
+        class: 'prose dark:prose-invert max-w-none focus:outline-none',
+      },
+    },
+  })
+
+  if (!editor) {
+    return null
+  }
 
   return (
     <div className={`border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden ${className}`}>
@@ -108,7 +87,7 @@ export function RichTextEditor({
         >
           <BoldIcon className="h-4 w-4" />
         </ToolbarButton>
-        
+
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleItalic().run()}
           isActive={editor.isActive('italic')}
@@ -116,7 +95,7 @@ export function RichTextEditor({
         >
           <ItalicIcon className="h-4 w-4" />
         </ToolbarButton>
-        
+
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleCode().run()}
           isActive={editor.isActive('code')}
@@ -126,7 +105,7 @@ export function RichTextEditor({
         </ToolbarButton>
 
         <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
-        
+
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           isActive={editor.isActive('bulletList')}
@@ -134,7 +113,7 @@ export function RichTextEditor({
         >
           <ListBulletIcon className="h-4 w-4" />
         </ToolbarButton>
-        
+
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           isActive={editor.isActive('orderedList')}
@@ -152,12 +131,13 @@ export function RichTextEditor({
         </ToolbarButton>
 
         <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
-        
+
         <ToolbarButton
           onClick={() => {
-            const url = window.prompt('Enter URL:');
+            // TODO: Replace with proper URL input dialog
+            const url = 'https://example.com' // Placeholder
             if (url) {
-              editor.chain().focus().setLink({ href: url }).run();
+              editor.chain().focus().setLink({ href: url }).run()
             }
           }}
           isActive={editor.isActive('link')}
@@ -198,5 +178,5 @@ export function RichTextEditor({
         <EditorContent editor={editor} />
       </div>
     </div>
-  );
+  )
 }

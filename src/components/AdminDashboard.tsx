@@ -1,78 +1,77 @@
-import { useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
-import { useTranslation } from 'react-i18next';
 import {
   ChartBarIcon,
-  EyeIcon,
-  TrashIcon,
-  ClockIcon,
-  UserGroupIcon,
-  DocumentTextIcon,
-  CodeBracketIcon,
   CheckCircleIcon,
+  ClockIcon,
+  CodeBracketIcon,
+  DocumentTextIcon,
   ExclamationTriangleIcon,
+  EyeIcon,
   MagnifyingGlassIcon,
-} from '@heroicons/react/24/outline';
+  TrashIcon,
+  UserGroupIcon,
+} from '@heroicons/react/24/outline'
+import { useMutation, useQuery } from 'convex/react'
+import { useState } from 'react'
+import { api } from '../../convex/_generated/api'
 
-type TabType = 'analytics' | 'content' | 'logs';
+type TabType = 'analytics' | 'content' | 'logs'
 
 export function AdminDashboard() {
-  const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<TabType>('analytics');
-  const [contentType, setContentType] = useState<'notes' | 'snippets' | 'todos'>('notes');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>('analytics')
+  const [contentType, setContentType] = useState<'notes' | 'snippets' | 'todos'>('notes')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   // Queries
-  const analytics = useQuery(api.admin.getAdminAnalytics);
-  const notes = useQuery(api.admin.getNotesForModeration, { searchQuery });
-  const snippets = useQuery(api.admin.getSnippetsForModeration, { searchQuery });
-  const todos = useQuery(api.admin.getTodosForModeration, { searchQuery });
-  const logs = useQuery(api.admin.getSystemLogs, { limit: 50 });
+  const analytics = useQuery(api.admin.getAdminAnalytics)
+  const notes = useQuery(api.admin.getNotesForModeration, { searchQuery })
+  const snippets = useQuery(api.admin.getSnippetsForModeration, { searchQuery })
+  const todos = useQuery(api.admin.getTodosForModeration, { searchQuery })
+  const logs = useQuery(api.admin.getSystemLogs, { limit: 50 })
 
   // Mutations
-  const deleteContent = useMutation(api.admin.deleteContent);
+  const deleteContent = useMutation(api.admin.deleteContent)
 
   const handleDeleteContent = async (contentId: string, contentType: 'notes' | 'snippets' | 'todos') => {
     try {
-      await deleteContent({ contentId: contentId as any, contentType });
-      setDeleteConfirm(null);
-    } catch (error) {
-      console.error('Failed to delete content:', error);
+      await deleteContent({ contentId: contentId as any, contentType })
+      setDeleteConfirm(null)
     }
-  };
+    catch (error) {
+      console.error('Failed to delete content:', error)
+    }
+  }
 
   const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString();
-  };
+    return new Date(timestamp).toLocaleString()
+  }
 
   const getContentItems = () => {
     switch (contentType) {
       case 'notes':
-        return notes || [];
+        return notes || []
       case 'snippets':
-        return snippets || [];
+        return snippets || []
       case 'todos':
-        return todos || [];
+        return todos || []
       default:
-        return [];
+        return []
     }
-  };
+  }
 
   const getItemContent = (item: any) => {
     if (contentType === 'todos') {
-      return item.description || '';
+      return item.description || ''
     }
-    return item.content || '';
-  };
+    return item.content || ''
+  }
 
   if (!analytics) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
       </div>
-    );
+    )
   }
 
   return (
@@ -95,14 +94,15 @@ export function AdminDashboard() {
             { id: 'analytics', name: 'Analytics', icon: ChartBarIcon },
             { id: 'content', name: 'Content Monitoring', icon: EyeIcon },
             { id: 'logs', name: 'System Logs', icon: ClockIcon },
-          ].map((tab) => (
+          ].map(tab => (
             <button
+              type="button"
               key={tab.id}
               onClick={() => setActiveTab(tab.id as TabType)}
               className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${activeTab === tab.id
                 ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                 : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                }`}
+              }`}
             >
               <tab.icon className="h-4 w-4" />
               {tab.name}
@@ -176,7 +176,7 @@ export function AdminDashboard() {
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Top Languages</h3>
               <div className="space-y-2">
-                {analytics.topLanguages.slice(0, 5).map((lang) => (
+                {analytics.topLanguages.slice(0, 5).map(lang => (
                   <div key={lang.language} className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">{lang.language}</span>
                     <span className="font-semibold text-gray-900 dark:text-white">{lang.count}</span>
@@ -190,7 +190,7 @@ export function AdminDashboard() {
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Top Tags</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {analytics.topTags.slice(0, 8).map((tag) => (
+              {analytics.topTags.slice(0, 8).map(tag => (
                 <div key={tag.tag} className="flex justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <span className="text-gray-600 dark:text-gray-400">{tag.tag}</span>
                   <span className="font-semibold text-gray-900 dark:text-white">{tag.count}</span>
@@ -209,7 +209,7 @@ export function AdminDashboard() {
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Content Type:</label>
             <select
               value={contentType}
-              onChange={(e) => setContentType(e.target.value as 'notes' | 'snippets' | 'todos')}
+              onChange={e => setContentType(e.target.value as 'notes' | 'snippets' | 'todos')}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
               <option value="notes">Notes</option>
@@ -224,7 +224,7 @@ export function AdminDashboard() {
                   type="text"
                   placeholder="Search content..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={e => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
               </div>
@@ -252,7 +252,7 @@ export function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {getContentItems().map((item) => (
+                  {getContentItems().map(item => (
                     <tr key={item._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -270,6 +270,7 @@ export function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
+                          type="button"
                           onClick={() => setDeleteConfirm(item._id)}
                           className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                         >
@@ -293,7 +294,7 @@ export function AdminDashboard() {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent System Activity</h3>
             </div>
             <div className="overflow-y-auto max-h-96">
-              {logs?.map((log) => (
+              {logs?.map(log => (
                 <div key={log._id} className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
@@ -303,7 +304,9 @@ export function AdminDashboard() {
                         </span>
                         {log.userEmail && (
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            by {log.userEmail}
+                            by
+                            {' '}
+                            {log.userEmail}
                           </span>
                         )}
                       </div>
@@ -332,16 +335,21 @@ export function AdminDashboard() {
               Delete Content
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Are you sure you want to delete this {contentType.slice(0, -1)}? This action cannot be undone.
+              Are you sure you want to delete this
+              {' '}
+              {contentType.slice(0, -1)}
+              ? This action cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">
               <button
+                type="button"
                 onClick={() => setDeleteConfirm(null)}
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={() => void handleDeleteContent(deleteConfirm, contentType)}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
@@ -352,5 +360,5 @@ export function AdminDashboard() {
         </div>
       )}
     </div>
-  );
-} 
+  )
+}

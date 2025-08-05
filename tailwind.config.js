@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   darkMode: 'class',
   theme: {
     extend: {
@@ -12,13 +12,13 @@ export default {
         secondary: '#64748b',
       },
       spacing: {
-        'section': '2rem',
-        'container': '0.5rem',
+        section: '2rem',
+        container: '0.5rem',
       },
       borderRadius: {
-        'container': '0.5rem',
+        container: '0.5rem',
       },
     },
   },
   plugins: [],
-};
+}

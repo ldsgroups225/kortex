@@ -1,37 +1,38 @@
-"use client";
-import { useAuthActions } from "@convex-dev/auth/react";
-import { useState } from "react";
-import { toast } from "sonner";
-import { useTranslation } from "react-i18next";
+'use client'
+import { useAuthActions } from '@convex-dev/auth/react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 export function SignInForm() {
-  const { t } = useTranslation();
-  const { signIn } = useAuthActions();
-  const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
-  const [submitting, setSubmitting] = useState(false);
+  const { t } = useTranslation()
+  const { signIn } = useAuthActions()
+  const [flow, setFlow] = useState<'signIn' | 'signUp'>('signIn')
+  const [submitting, setSubmitting] = useState(false)
 
   return (
     <div className="w-full">
       <form
         className="flex flex-col gap-form-field"
         onSubmit={(e) => {
-          e.preventDefault();
-          setSubmitting(true);
-          const formData = new FormData(e.target as HTMLFormElement);
-          formData.set("flow", flow);
-          void signIn("password", formData).catch((error) => {
-            let toastTitle = "";
-            if (error.message.includes("Invalid password")) {
-              toastTitle = "Invalid password. Please try again.";
-            } else {
-              toastTitle =
-                flow === "signIn"
-                  ? "Could not sign in, did you mean to sign up?"
-                  : "Could not sign up, did you mean to sign in?";
+          e.preventDefault()
+          setSubmitting(true)
+          const formData = new FormData(e.target as HTMLFormElement)
+          formData.set('flow', flow)
+          void signIn('password', formData).catch((error) => {
+            let toastTitle = ''
+            if (error.message.includes('Invalid password')) {
+              toastTitle = 'Invalid password. Please try again.'
             }
-            toast.error(toastTitle);
-            setSubmitting(false);
-          });
+            else {
+              toastTitle
+                = flow === 'signIn'
+                  ? 'Could not sign in, did you mean to sign up?'
+                  : 'Could not sign up, did you mean to sign in?'
+            }
+            toast.error(toastTitle)
+            setSubmitting(false)
+          })
         }}
       >
         <input
@@ -49,20 +50,20 @@ export function SignInForm() {
           required
         />
         <button className="auth-button" type="submit" disabled={submitting}>
-          {flow === "signIn" ? t('auth.signIn') : t('auth.signUp')}
+          {flow === 'signIn' ? t('auth.signIn') : t('auth.signUp')}
         </button>
         <div className="text-center text-sm text-secondary">
           <span>
-            {flow === "signIn"
+            {flow === 'signIn'
               ? t('auth.dontHaveAccount')
               : t('auth.alreadyHaveAccount')}
           </span>
           <button
             type="button"
             className="text-primary hover:text-primary-hover hover:underline font-medium cursor-pointer"
-            onClick={() => setFlow(flow === "signIn" ? "signUp" : "signIn")}
+            onClick={() => setFlow(flow === 'signIn' ? 'signUp' : 'signIn')}
           >
-            {flow === "signIn" ? t('auth.signUpInstead') : t('auth.signInInstead')}
+            {flow === 'signIn' ? t('auth.signUpInstead') : t('auth.signInInstead')}
           </button>
         </div>
       </form>
@@ -71,9 +72,9 @@ export function SignInForm() {
         <span className="mx-4 text-secondary">{t('auth.or')}</span>
         <hr className="my-4 grow border-gray-200" />
       </div>
-      <button className="auth-button" onClick={() => void signIn("anonymous")}>
+      <button type="button" className="auth-button" onClick={() => void signIn('anonymous')}>
         {t('auth.signInAnonymously')}
       </button>
     </div>
-  );
+  )
 }

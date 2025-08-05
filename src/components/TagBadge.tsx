@@ -1,13 +1,13 @@
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/outline'
 
 interface TagBadgeProps {
-  tag: string;
-  onClick?: () => void;
-  onRemove?: () => void;
-  className?: string;
-  clickable?: boolean;
-  removable?: boolean;
-  color?: string;
+  tag: string
+  onClick?: () => void
+  onRemove?: () => void
+  className?: string
+  clickable?: boolean
+  removable?: boolean
+  color?: string
 }
 
 const TAG_COLORS = [
@@ -19,7 +19,7 @@ const TAG_COLORS = [
   'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
   'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
   'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-];
+]
 
 export function TagBadge({
   tag,
@@ -28,25 +28,26 @@ export function TagBadge({
   className = '',
   clickable = false,
   removable = false,
-  color
+  color,
 }: TagBadgeProps) {
   // Generate consistent color based on tag name
-  const tagIndex = tag.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const defaultColor = TAG_COLORS[tagIndex % TAG_COLORS.length];
-  const tagColor = color || defaultColor;
+  const tagIndex = tag.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  const defaultColor = TAG_COLORS[tagIndex % TAG_COLORS.length]
+  const tagColor = color || defaultColor
 
-  const baseClasses = `inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${tagColor}`;
-  const clickableClasses = clickable ? 'cursor-pointer hover:opacity-80 transition-opacity' : '';
-  const finalClasses = `${baseClasses} ${clickableClasses} ${className}`;
+  const baseClasses = `inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${tagColor}`
+  const clickableClasses = clickable ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
+  const finalClasses = `${baseClasses} ${clickableClasses} ${className}`
 
   return (
     <span className={finalClasses} onClick={clickable ? onClick : undefined}>
       <span>{tag}</span>
       {removable && onRemove && (
         <button
+          type="button"
           onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
+            e.stopPropagation()
+            onRemove()
           }}
           className="ml-1 hover:bg-black hover:bg-opacity-10 rounded-full p-0.5 transition-colors"
         >
@@ -54,5 +55,5 @@ export function TagBadge({
         </button>
       )}
     </span>
-  );
-} 
+  )
+}
