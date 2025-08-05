@@ -14,6 +14,8 @@
     "cancel": "Annuler",
     "close": "Fermer",
     "search": "Rechercher",
+    "clearAll": "Tout effacer",
+    "all": "Tout",
     "loading": "Chargement...",
     "error": "Erreur",
     "success": "Succès",
@@ -36,6 +38,8 @@
     "copied": "Copié !",
     "pin": "Épingler",
     "unpin": "Désépingler",
+    "pinned": "Épinglé",
+    "unpinned": "Non épinglé",
     "starred": "Favori",
     "unstarred": "Non favori"
   },

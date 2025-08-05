@@ -14,6 +14,8 @@
     "cancel": "Cancel",
     "close": "Close",
     "search": "Search",
+    "clearAll": "Clear All",
+    "all": "All",
     "loading": "Loading...",
     "error": "Error",
     "success": "Success",
@@ -36,6 +38,8 @@
     "copied": "Copied!",
     "pin": "Pin",
     "unpin": "Unpin",
+    "pinned": "Pinned",
+    "unpinned": "Unpinned",
     "starred": "Starred",
     "unstarred": "Unstarred"
   },

@@ -1,6 +1,8 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState, useRef, useEffect } from "react";
+import { SearchBar } from './SearchBar';
+import { FilterBar, FilterConfig } from './FilterBar';
 import { useTranslation } from "react-i18next";
 import {
   PlusIcon,
@@ -45,6 +47,10 @@ export function TodosPage() {
   const [showCompleted, setShowCompleted] = useState(true);
   const [draggedTodo, setDraggedTodo] = useState<Todo | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<TodoStatus | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilters, setActiveFilters] = useState<Record<string, string | string[]>>({
+    status: '',
+  });
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -53,6 +59,74 @@ export function TodosPage() {
       inputRef.current.focus();
     }
   }, []);
+
+  // Filter and search logic
+  const getFilteredTodos = () => {
+    if (!todos) return { todo: [], inProgress: [], done: [] };
+
+    let filteredTodos = todos;
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filteredTodos = {
+        todo: todos.todo.filter(todo =>
+          todo.title.toLowerCase().includes(query) ||
+          (todo.description && todo.description.toLowerCase().includes(query))
+        ),
+        inProgress: todos.inProgress.filter(todo =>
+          todo.title.toLowerCase().includes(query) ||
+          (todo.description && todo.description.toLowerCase().includes(query))
+        ),
+        done: todos.done.filter(todo =>
+          todo.title.toLowerCase().includes(query) ||
+          (todo.description && todo.description.toLowerCase().includes(query))
+        ),
+      };
+    }
+
+    // Apply status filter
+    if (activeFilters.status) {
+      const status = activeFilters.status as TodoStatus;
+      filteredTodos = {
+        todo: status === 'todo' ? filteredTodos.todo : [],
+        inProgress: status === 'in_progress' ? filteredTodos.inProgress : [],
+        done: status === 'done' ? filteredTodos.done : [],
+      };
+    }
+
+    return filteredTodos;
+  };
+
+  const displayedTodos = getFilteredTodos();
+
+  // Filter configurations
+  const filterConfigs: FilterConfig[] = [
+    {
+      key: 'status',
+      label: t('common.status'),
+      options: [
+        { value: '', label: t('common.all') },
+        { value: 'todo', label: t('todos.statuses.todo') },
+        { value: 'in_progress', label: t('todos.statuses.in_progress') },
+        { value: 'done', label: t('todos.statuses.done') },
+      ],
+    },
+  ];
+
+  const handleFilterChange = (key: string, value: string | string[]) => {
+    setActiveFilters(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const clearAllFilters = () => {
+    setActiveFilters({
+      status: '',
+    });
+    setSearchQuery('');
+  };
 
   const handleCreateTodo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -378,30 +452,45 @@ export function TodosPage() {
         </button>
       </div>
 
+      {/* Search and Filter Bar */}
+      <div className="mb-6 flex flex-col sm:flex-row gap-4">
+        <SearchBar
+          placeholder={t('todos.searchTodos')}
+          value={searchQuery}
+          onChange={setSearchQuery}
+        />
+        <FilterBar
+          filters={filterConfigs}
+          activeFilters={activeFilters}
+          onFilterChange={handleFilterChange}
+          onClearAll={clearAllFilters}
+        />
+      </div>
+
       {/* Todo Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <TodoColumn
           title={t('todos.columns.todo')}
-          todos={todos.todo}
+          todos={displayedTodos.todo}
           status="todo"
           color="bg-blue-100 border-blue-300 dark:bg-blue-900/20 dark:border-blue-700"
         />
         <TodoColumn
           title={t('todos.columns.in_progress')}
-          todos={todos.inProgress}
+          todos={displayedTodos.inProgress}
           status="in_progress"
           color="bg-yellow-100 border-yellow-300 dark:bg-yellow-900/20 dark:border-yellow-700"
         />
         <TodoColumn
           title={t('todos.columns.done')}
-          todos={showCompleted ? todos.done : []}
+          todos={showCompleted ? displayedTodos.done : []}
           status="done"
           color="bg-green-100 border-green-300 dark:bg-green-900/20 dark:border-green-700"
         />
       </div>
 
       {/* Empty State */}
-      {todos.todo.length === 0 && todos.inProgress.length === 0 && todos.done.length === 0 && (
+      {displayedTodos.todo.length === 0 && displayedTodos.inProgress.length === 0 && displayedTodos.done.length === 0 && (
         <div className="text-center py-12">
           <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
             <CheckIcon className="w-8 h-8 text-gray-400" />

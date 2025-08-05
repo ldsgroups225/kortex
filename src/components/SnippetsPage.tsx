@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
+import { SearchBar } from './SearchBar';
+import { FilterBar, FilterConfig } from './FilterBar';
+import { TagBadge } from './TagBadge';
 import { useTranslation } from 'react-i18next';
 import {
   PlusIcon,
@@ -41,6 +44,11 @@ export function SnippetsPage() {
   const [editingSnippet, setEditingSnippet] = useState<Id<"snippets"> | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Id<"snippets"> | null>(null);
   const [copiedSnippet, setCopiedSnippet] = useState<Id<"snippets"> | null>(null);
+  const [activeFilters, setActiveFilters] = useState<Record<string, string | string[]>>({
+    language: '',
+    category: '',
+    pinned: '',
+  });
 
   // Queries
   const snippets = useQuery(api.snippets.getUserSnippets, {
@@ -61,8 +69,77 @@ export function SnippetsPage() {
   const deleteSnippet = useMutation(api.snippets.deleteSnippet);
   const togglePin = useMutation(api.snippets.togglePin);
 
-  const displayedSnippets = searchQuery.trim() ? searchResults : snippets;
+  // Filter and search logic
+  const getFilteredSnippets = () => {
+    let filteredSnippets = searchQuery.trim() ? searchResults : snippets;
+
+    if (!filteredSnippets) return [];
+
+    // Apply filters
+    if (activeFilters.language) {
+      filteredSnippets = filteredSnippets.filter(snippet => snippet.language === activeFilters.language);
+    }
+
+    if (activeFilters.category) {
+      filteredSnippets = filteredSnippets.filter(snippet => snippet.category === activeFilters.category);
+    }
+
+    if (activeFilters.pinned === 'pinned') {
+      filteredSnippets = filteredSnippets.filter(snippet => snippet.pinned);
+    } else if (activeFilters.pinned === 'unpinned') {
+      filteredSnippets = filteredSnippets.filter(snippet => !snippet.pinned);
+    }
+
+    return filteredSnippets;
+  };
+
+  const displayedSnippets = getFilteredSnippets();
   const allCategories = [...new Set([...DEFAULT_CATEGORIES, ...userCategories])].sort();
+
+  // Filter configurations
+  const filterConfigs: FilterConfig[] = [
+    {
+      key: 'language',
+      label: t('common.language'),
+      options: [
+        { value: '', label: t('common.all') },
+        ...LANGUAGES.map(lang => ({ value: lang.value, label: lang.label })),
+      ],
+    },
+    {
+      key: 'category',
+      label: t('common.category'),
+      options: [
+        { value: '', label: t('common.all') },
+        ...allCategories.map(cat => ({ value: cat, label: cat })),
+      ],
+    },
+    {
+      key: 'pinned',
+      label: t('common.pin'),
+      options: [
+        { value: '', label: t('common.all') },
+        { value: 'pinned', label: t('common.pinned') },
+        { value: 'unpinned', label: t('common.unpinned') },
+      ],
+    },
+  ];
+
+  const handleFilterChange = (key: string, value: string | string[]) => {
+    setActiveFilters(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const clearAllFilters = () => {
+    setActiveFilters({
+      language: '',
+      category: '',
+      pinned: '',
+    });
+    setSearchQuery('');
+  };
 
   const getLanguageStyle = (language?: string) => {
     const lang = LANGUAGES.find(l => l.value === language);
@@ -120,9 +197,9 @@ export function SnippetsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Code Snippets & Prompts</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('snippets.title')}</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            {displayedSnippets?.length || 0} snippets
+            {displayedSnippets?.length || 0} {t('snippets.title').toLowerCase()}
           </p>
         </div>
         <button
@@ -130,40 +207,26 @@ export function SnippetsPage() {
           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
         >
           <PlusIcon className="h-4 w-4" />
-          New Snippet
+          {t('snippets.addSnippet')}
         </button>
       </div>
 
-      {/* Filters and Search */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        {/* Category Filter */}
-        <div className="flex-1">
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none"
-          >
-            <option value="">All Categories</option>
-            {allCategories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* Search */}
+      <SearchBar
+        value={searchQuery}
+        onChange={setSearchQuery}
+        placeholder={t('snippets.searchSnippets')}
+        className="w-full"
+      />
 
-        {/* Search */}
-        <div className="flex-1 relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search snippets..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none"
-          />
-        </div>
-      </div>
+      {/* Filters */}
+      <FilterBar
+        filters={filterConfigs}
+        activeFilters={activeFilters}
+        onFilterChange={handleFilterChange}
+        onClearAll={clearAllFilters}
+        className="w-full"
+      />
 
       {/* Snippets Grid */}
       {displayedSnippets?.length === 0 ? (
@@ -199,7 +262,7 @@ export function SnippetsPage() {
                   </h4>
                   <div className="flex items-center gap-1 ml-2">
                     <button
-                      onClick={() => handleTogglePin(snippet._id)}
+                      onClick={() => void handleTogglePin(snippet._id)}
                       className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
                       title={snippet.pinned ? 'Unpin' : 'Pin'}
                     >
@@ -259,7 +322,7 @@ export function SnippetsPage() {
                 </div>
 
                 <button
-                  onClick={() => copyToClipboard(snippet.content, snippet._id)}
+                  onClick={() => void copyToClipboard(snippet.content, snippet._id)}
                   className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors flex items-center gap-1"
                   title="Copy to clipboard"
                 >
@@ -324,7 +387,7 @@ export function SnippetsPage() {
                 Cancel
               </button>
               <button
-                onClick={() => handleDeleteSnippet(showDeleteConfirm)}
+                onClick={() => void handleDeleteSnippet(showDeleteConfirm)}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
                 Delete
@@ -502,7 +565,7 @@ function SnippetEditor({ snippet, categories, onSave, onCancel }: SnippetEditorP
             Cancel
           </button>
           <button
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             disabled={!title.trim() || !content.trim() || isSaving}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >

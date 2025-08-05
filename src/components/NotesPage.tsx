@@ -4,6 +4,9 @@ import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { RichTextEditor } from './RichTextEditor';
 import { TagInput } from './TagInput';
+import { SearchBar } from './SearchBar';
+import { FilterBar, FilterConfig } from './FilterBar';
+import { TagBadge } from './TagBadge';
 import { useTranslation } from 'react-i18next';
 import {
   PlusIcon,
@@ -11,6 +14,7 @@ import {
   StarIcon,
   TrashIcon,
   ClockIcon,
+  FunnelIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -20,6 +24,10 @@ export function NotesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Id<"notes"> | null>(null);
+  const [activeFilters, setActiveFilters] = useState<Record<string, string | string[]>>({
+    tags: [],
+    pinned: '',
+  });
 
   // Queries
   const notes = useQuery(api.notes.getUserNotes);
@@ -69,7 +77,70 @@ export function NotesPage() {
     };
   }, [saveChanges]);
 
-  const displayedNotes = searchQuery.trim() ? searchResults : notes;
+  // Filter and search logic
+  const getFilteredNotes = () => {
+    let filteredNotes = searchQuery.trim() ? searchResults : notes;
+
+    if (!filteredNotes) return [];
+
+    // Apply filters
+    if (activeFilters.tags && Array.isArray(activeFilters.tags) && activeFilters.tags.length > 0) {
+      filteredNotes = filteredNotes.filter(note =>
+        note.tags && (activeFilters.tags as string[]).some((tag: string) => note.tags.includes(tag))
+      );
+    }
+
+    if (activeFilters.pinned === 'pinned') {
+      filteredNotes = filteredNotes.filter(note => note.pinned);
+    } else if (activeFilters.pinned === 'unpinned') {
+      filteredNotes = filteredNotes.filter(note => !note.pinned);
+    }
+
+    return filteredNotes;
+  };
+
+  const displayedNotes = getFilteredNotes();
+
+  // Filter configurations
+  const filterConfigs: FilterConfig[] = [
+    {
+      key: 'tags',
+      label: t('common.tags'),
+      options: userTags.map(tag => ({ value: tag, label: tag })),
+      multiSelect: true,
+    },
+    {
+      key: 'pinned',
+      label: t('common.pin'),
+      options: [
+        { value: '', label: t('common.all') },
+        { value: 'pinned', label: t('common.pinned') },
+        { value: 'unpinned', label: t('common.unpinned') },
+      ],
+    },
+  ];
+
+  const handleFilterChange = (key: string, value: string | string[]) => {
+    setActiveFilters(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const clearAllFilters = () => {
+    setActiveFilters({
+      tags: [],
+      pinned: '',
+    });
+    setSearchQuery('');
+  };
+
+  const handleTagClick = (tag: string) => {
+    const currentTags = Array.isArray(activeFilters.tags) ? activeFilters.tags : [];
+    if (!currentTags.includes(tag)) {
+      handleFilterChange('tags', [...currentTags, tag]);
+    }
+  };
 
   const handleCreateNote = async () => {
     if (isCreating) return;
@@ -137,9 +208,9 @@ export function NotesPage() {
         {/* Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Notes</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('notes.title')}</h2>
             <button
-              onClick={handleCreateNote}
+              onClick={() => void handleCreateNote()}
               disabled={isCreating}
               className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
@@ -148,16 +219,21 @@ export function NotesPage() {
           </div>
 
           {/* Search */}
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search notes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-            />
-          </div>
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder={t('notes.searchNotes')}
+            className="mb-4"
+          />
+
+          {/* Filters */}
+          <FilterBar
+            filters={filterConfigs}
+            activeFilters={activeFilters}
+            onFilterChange={handleFilterChange}
+            onClearAll={clearAllFilters}
+            className="mb-4"
+          />
         </div>
 
         {/* Notes List */}
@@ -185,7 +261,7 @@ export function NotesPage() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleTogglePin(note._id);
+                          void handleTogglePin(note._id);
                         }}
                         className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
                       >
@@ -217,17 +293,18 @@ export function NotesPage() {
                       {formatDate(note._creationTime)}
                     </div>
                     {note.tags.length > 0 && (
-                      <div className="flex gap-1">
-                        {note.tags.slice(0, 2).map((tag) => (
-                          <span
+                      <div className="flex gap-1 flex-wrap">
+                        {note.tags.slice(0, 3).map((tag) => (
+                          <TagBadge
                             key={tag}
-                            className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs"
-                          >
-                            {tag}
-                          </span>
+                            tag={tag}
+                            onClick={() => handleTagClick(tag)}
+                            clickable={true}
+                            className="text-xs"
+                          />
                         ))}
-                        {note.tags.length > 2 && (
-                          <span className="text-gray-400">+{note.tags.length - 2}</span>
+                        {note.tags.length > 3 && (
+                          <span className="text-gray-400 text-xs">+{note.tags.length - 3}</span>
                         )}
                       </div>
                     )}
@@ -294,7 +371,7 @@ export function NotesPage() {
                 Choose a note from the sidebar or create a new one
               </p>
               <button
-                onClick={handleCreateNote}
+                onClick={() => void handleCreateNote()}
                 disabled={isCreating}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
