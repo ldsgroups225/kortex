@@ -166,7 +166,9 @@
     "dueToday": "Échéance aujourd'hui",
     "dueTomorrow": "Échéance demain",
     "showCompleted": "Afficher les terminées",
-    "hideCompleted": "Masquer les terminées"
+    "hideCompleted": "Masquer les terminées",
+    "addPlaceholder": "Qu'est-ce qui doit être fait ?",
+    "searchPlaceholder": "Rechercher des tâches..."
   },
   "settings": {
     "title": "Paramètres",
@@ -228,5 +230,94 @@
     "monthsAgo_plural": "Il y a {{count}} mois",
     "yearsAgo": "Il y a {{count}} an",
     "yearsAgo_plural": "Il y a {{count}} ans"
+  },
+  "toasts": {
+    "copySuccess": "Copié dans le presse-papiers !",
+    "copySuccessDesc": "Le contenu a été copié avec succès.",
+    "copyError": "Échec de la copie",
+    "copyErrorDesc": "Impossible de copier le contenu dans le presse-papiers.",
+    "noteCreated": "Note créée !",
+    "noteCreatedDesc": "Commencez à écrire votre nouvelle note.",
+    "noteSaved": "Note sauvegardée !",
+    "noteSavedDesc": "Vos modifications ont été sauvegardées automatiquement.",
+    "noteDeleted": "Note supprimée",
+    "noteDeletedDesc": "La note a été supprimée définitivement.",
+    "notePinned": "Note épinglée",
+    "notePinnedDesc": "Ajoutée aux notes épinglées.",
+    "noteUnpinned": "Note désépinglée",
+    "noteUnpinnedDesc": "Supprimée des notes épinglées.",
+    "snippetCreated": "Extrait créé !",
+    "snippetCreatedDesc": "Votre nouvel extrait est prêt à utiliser.",
+    "snippetUpdated": "Extrait mis à jour !",
+    "snippetUpdatedDesc": "Vos modifications ont été sauvegardées.",
+    "snippetDeleted": "Extrait supprimé",
+    "snippetDeletedDesc": "L'extrait a été supprimé définitivement.",
+    "snippetPinned": "Extrait épinglé",
+    "snippetPinnedDesc": "Ajouté aux extraits épinglés.",
+    "snippetUnpinned": "Extrait désépinglé",
+    "snippetUnpinnedDesc": "Supprimé des extraits épinglés.",
+    "todoCreated": "Tâche créée !",
+    "todoCreatedDesc": "Nouvelle tâche ajoutée à votre liste.",
+    "todoUpdated": "Tâche mise à jour !",
+    "todoUpdatedDesc": "Vos modifications ont été enregistrées.",
+    "todoDeleted": "Tâche supprimée",
+    "todoDeletedDesc": "La tâche a été supprimée.",
+    "todoMoved": "Tâche déplacée !",
+    "todoMovedDesc": "Déplacée vers la colonne \"{{status}}\".",
+    "signInSuccess": "Bon retour !",
+    "signInSuccessDesc": "Vous vous êtes connecté avec succès.",
+    "signUpSuccess": "Compte créé !",
+    "signUpSuccessDesc": "Votre compte a été créé et vous êtes maintenant connecté.",
+    "signInAnonymousSuccess": "Connecté anonymement !",
+    "signInAnonymousSuccessDesc": "Vous pouvez commencer à utiliser l'application immédiatement.",
+    "signOutSuccess": "Déconnexion réussie",
+    "signOutSuccessDesc": "Vous avez été déconnecté de votre compte.",
+    "signInAnonymousError": "Échec de la connexion anonyme",
+    "signInAnonymousErrorDesc": "Veuillez réessayer.",
+    "operationError": "Échec de l'opération",
+    "operationErrorDesc": "Veuillez réessayer."
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "Bienvenue sur Kortex ! 👋",
+      "content": "Faisons une visite rapide de votre nouvel espace de travail. Cliquez sur \"Suivant\" pour commencer !"
+    },
+    "dashboard": {
+      "title": "Votre tableau de bord",
+      "content": "Voici un aperçu de tout votre contenu. Vous pouvez voir les nombres de notes, extraits et tâches d'un coup d'œil."
+    },
+    "navigation": {
+      "title": "Menu de navigation",
+      "content": "Utilisez cette barre latérale pour naviguer entre les différentes sections : Notes, Extraits, Tâches et Paramètres."
+    },
+    "notes": {
+      "title": "Notes enrichies",
+      "content": "Créez et modifiez des notes en texte enrichi. Cliquez sur le bouton + pour créer votre première note !"
+    },
+    "notesAutosave": {
+      "title": "Magie de l'auto-sauvegarde ✨",
+      "content": "Vos notes sont sauvegardées automatiquement pendant que vous tapez. Pas besoin de vous soucier de perdre votre travail !"
+    },
+    "snippets": {
+      "title": "Extraits de code",
+      "content": "Sauvegardez des extraits de code et modèles réutilisables. Parfait pour stocker des blocs de code fréquemment utilisés !"
+    },
+    "snippetsCopy": {
+      "title": "Copie en un clic",
+      "content": "Cliquez sur le bouton copier sur n'importe quel extrait pour le copier instantanément dans votre presse-papiers. Si pratique !"
+    },
+    "todosKanban": {
+      "title": "Tableau Kanban",
+      "content": "Organisez vos tâches avec ce tableau kanban visuel. Glissez-déposez les cartes entre les colonnes !"
+    },
+    "todosAdd": {
+      "title": "Ajouter nouvelles tâches",
+      "content": "Tapez votre tâche et cliquez sur \"Ajouter\" pour créer de nouveaux éléments à faire. Gardez une trace de tout !"
+    },
+    "step": "Étape {{current}} sur {{total}}",
+    "back": "Retour",
+    "next": "Suivant",
+    "skip": "Ignorer",
+    "finish": "Terminer"
   }
 }

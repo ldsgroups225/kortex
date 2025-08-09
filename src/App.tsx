@@ -10,14 +10,17 @@ import {
   SunIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
-import { Authenticated, Unauthenticated, useQuery } from 'convex/react'
+import { Authenticated, Unauthenticated, useMutation, useQuery } from 'convex/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Toaster } from 'sonner'
 import { api } from '../convex/_generated/api'
 import { AdminDashboard } from './components/AdminDashboard'
 import { KeyboardShortcuts } from './components/KeyboardShortcuts'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
 import { NotesPage } from './components/NotesPage'
+import { OnboardingProvider } from './components/OnboardingProvider'
+import { OnboardingTooltip } from './components/OnboardingTooltip'
 import { SettingsPage } from './components/SettingsPage'
 import { SnippetsPage } from './components/SnippetsPage'
 import { TodosPage } from './components/TodosPage'
@@ -30,6 +33,7 @@ export default function App() {
   const [currentRoute, setCurrentRoute] = useState<Route>('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const userPreferences = useQuery(api.userPreferences.getUserPreferences)
+  const updateUserPreferences = useMutation(api.userPreferences.updateUserPreferences)
 
   // Compute dark mode during render instead of using useEffect
   const darkMode = useMemo(() => {
@@ -59,10 +63,23 @@ export default function App() {
     document.documentElement.classList.toggle('dark', darkMode)
   }, [darkMode])
 
-  const toggleDarkMode = () => {
-    const newDarkMode = !darkMode
-    localStorage.setItem('theme', newDarkMode ? 'dark' : 'light')
-    document.documentElement.classList.toggle('dark', newDarkMode)
+  const toggleDarkMode = async () => {
+    const newTheme = darkMode ? 'light' : 'dark'
+
+    if (userPreferences) {
+      // For authenticated users, update preferences in database
+      try {
+        await updateUserPreferences({ theme: newTheme })
+      }
+      catch (error) {
+        console.error('Failed to update theme preference:', error)
+      }
+    }
+    else {
+      // For unauthenticated users, use localStorage
+      localStorage.setItem('theme', newTheme)
+      document.documentElement.classList.toggle('dark', newTheme === 'dark')
+    }
   }
 
   // Keyboard shortcuts refs
@@ -88,28 +105,32 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      <KeyboardShortcuts
-        onCopyLastSelected={handleCopyLastSelected}
-        onCreateNote={handleCreateNote}
-        onFocusSearch={handleFocusSearch}
-      />
-      <Authenticated>
-        <AuthenticatedApp
-          currentRoute={currentRoute}
-          setCurrentRoute={setCurrentRoute}
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          darkMode={darkMode}
-          toggleDarkMode={toggleDarkMode}
-          searchRef={searchRef}
+    <OnboardingProvider>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+        <KeyboardShortcuts
+          onCopyLastSelected={handleCopyLastSelected}
+          onCreateNote={handleCreateNote}
+          onFocusSearch={handleFocusSearch}
         />
-      </Authenticated>
+        <Authenticated>
+          <AuthenticatedApp
+            currentRoute={currentRoute}
+            setCurrentRoute={setCurrentRoute}
+            sidebarOpen={sidebarOpen}
+            setSidebarOpen={setSidebarOpen}
+            darkMode={darkMode}
+            toggleDarkMode={toggleDarkMode}
+            searchRef={searchRef}
+          />
+          <OnboardingTooltip />
+        </Authenticated>
 
-      <Unauthenticated>
-        <UnauthenticatedApp darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-      </Unauthenticated>
-    </div>
+        <Unauthenticated>
+          <UnauthenticatedApp darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+        </Unauthenticated>
+      </div>
+      <Toaster richColors position="top-right" theme={darkMode ? 'dark' : 'light'} />
+    </OnboardingProvider>
   )
 }
 
@@ -161,8 +182,8 @@ function AuthenticatedApp({
         >
           <div className="flex flex-col h-full">
             {/* Logo */}
-            <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">NotesApp</h1>
+            <div className="flex items-center justify-between h-16 px-6 border-b border-border dark:border-border-dark">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Kortex</h1>
               <button
                 type="button"
                 onClick={() => setSidebarOpen(false)}
@@ -267,14 +288,14 @@ function AuthenticatedApp({
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+        fixed inset-y-0 left-0 z-50 w-64 bg-component dark:bg-component-dark border-r border-border dark:border-border-dark transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">NotesApp</h1>
+          <div className="flex items-center justify-between h-16 px-6 border-b border-border dark:border-border-dark">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white" data-onboarding="app-logo">Kortex</h1>
             <button
               type="button"
               onClick={() => setSidebarOpen(false)}
@@ -285,7 +306,7 @@ function AuthenticatedApp({
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
+          <nav className="flex-1 px-4 py-6 space-y-2" data-onboarding="navigation">
             {navigation.map(item => (
               <button
                 type="button"
@@ -297,8 +318,8 @@ function AuthenticatedApp({
                 className={`
                   w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors
                   ${currentRoute === item.route
-                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                ? 'text-primary font-semibold'
+                : 'text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-white'
               }
                 `}
               >
@@ -309,7 +330,7 @@ function AuthenticatedApp({
           </nav>
 
           {/* User info and controls */}
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-4">
+          <div className="border-t border-border dark:border-border-dark p-4 space-y-4">
             <button
               type="button"
               onClick={toggleDarkMode}
@@ -340,7 +361,7 @@ function AuthenticatedApp({
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-16 flex items-center justify-between px-6">
+        <header className="bg-component dark:bg-component-dark border-b border-border dark:border-border-dark h-16 flex items-center justify-between px-6">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -350,7 +371,7 @@ function AuthenticatedApp({
           </button>
 
           <div className="flex-1 lg:ml-0">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white capitalize">
+            <h2 className="text-2xl font-semibold text-slate-800 dark:text-slate-100 capitalize">
               {currentRoute}
             </h2>
           </div>
@@ -373,16 +394,17 @@ function UnauthenticatedApp({ darkMode, toggleDarkMode }: { darkMode: boolean, t
   const { t } = useTranslation()
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-100 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-800">
+      {/* Header */}
+      <header className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 px-6 py-4">
         <div className="flex justify-between items-center max-w-7xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">NotesApp</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Kortex</h1>
           <div className="flex items-center space-x-4">
             <LanguageSwitcher />
             <button
               type="button"
               onClick={toggleDarkMode}
-              className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100/50 dark:hover:bg-gray-700/50 transition-colors"
             >
               {darkMode
                 ? (
@@ -396,17 +418,77 @@ function UnauthenticatedApp({ darkMode, toggleDarkMode }: { darkMode: boolean, t
         </div>
       </header>
 
-      <main className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md mx-auto">
-          <div className="text-center mb-8">
-            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              {t('dashboard.welcome')}
-            </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-400">
-              {t('dashboard.welcome')}
-            </p>
+      {/* Main Content - Two Column Layout */}
+      <main className="min-h-[calc(100vh-80px)] grid grid-cols-1 md:grid-cols-2">
+        {/* Left Column - Sign In Form */}
+        <div className="flex items-center justify-center p-8">
+          <div className="w-full max-w-md">
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-sm">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                  {t('auth.welcome')}
+                </h2>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Sign in to your account
+                </p>
+              </div>
+              <SignInForm />
+            </div>
           </div>
-          <SignInForm />
+        </div>
+
+        {/* Right Column - Branding & Welcome */}
+        <div className="hidden md:flex items-center justify-center p-8 relative overflow-hidden">
+          <div className="text-center max-w-lg relative z-10">
+            {/* App Icon/Logo */}
+            <div className="mb-8">
+              <div className="w-24 h-24 mx-auto rounded-2xl shadow-2xl mb-6">
+                <img src="/kortex-logo.svg" alt="Kortex Logo" className="w-full h-full" />
+              </div>
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                Kortex
+              </h1>
+            </div>
+
+            {/* Tagline & Features */}
+            <div className="space-y-6">
+              <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200">
+                The All-in-One Workspace for Notes, Code, and Tasks
+              </h2>
+              <p className="text-lg text-gray-600 dark:text-gray-400 leading-relaxed">
+                Boost your productivity with Kortex, the intelligent workspace. Seamlessly manage rich-text notes, organize code snippets, and track tasks on a visual Kanban board.
+              </p>
+
+              {/* Feature highlights */}
+              <div className="grid grid-cols-1 gap-4 mt-8">
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                    <DocumentTextIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <span className="text-gray-700 dark:text-gray-300">Rich text notes with instant sync</span>
+                </div>
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                    <CodeBracketIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  </div>
+                  <span className="text-gray-700 dark:text-gray-300">Code snippets and templates</span>
+                </div>
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                    <CheckCircleIcon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <span className="text-gray-700 dark:text-gray-300">Task management & organization</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Background decoration */}
+          <div className="absolute inset-0 opacity-20">
+            <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-blue-300 dark:bg-blue-600 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-1/4 right-1/4 w-40 h-40 bg-purple-300 dark:bg-purple-600 rounded-full blur-3xl"></div>
+            <div className="absolute top-3/4 left-1/2 w-28 h-28 bg-indigo-300 dark:bg-indigo-600 rounded-full blur-3xl"></div>
+          </div>
         </div>
       </main>
     </div>
@@ -414,22 +496,30 @@ function UnauthenticatedApp({ darkMode, toggleDarkMode }: { darkMode: boolean, t
 }
 
 function RouteContent({ route }: { route: Route }) {
-  switch (route) {
-    case 'dashboard':
-      return <DashboardPage />
-    case 'notes':
-      return <NotesPage />
-    case 'snippets':
-      return <SnippetsPage />
-    case 'todos':
-      return <TodosPage />
-    case 'settings':
-      return <SettingsPage />
-    case 'admin':
-      return <AdminDashboard />
-    default:
-      return <DashboardPage />
+  const content = () => {
+    switch (route) {
+      case 'dashboard':
+        return <DashboardPage />
+      case 'notes':
+        return <NotesPage />
+      case 'snippets':
+        return <SnippetsPage />
+      case 'todos':
+        return <TodosPage />
+      case 'settings':
+        return <SettingsPage />
+      case 'admin':
+        return <AdminDashboard />
+      default:
+        return <DashboardPage />
+    }
   }
+
+  return (
+    <div key={route} className="animate-fade-in">
+      {content()}
+    </div>
+  )
 }
 
 function DashboardPage() {
@@ -440,58 +530,58 @@ function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-onboarding="stats-grid">
+        <div className="bg-component dark:bg-component-dark p-6 rounded-lg shadow-sm border border-border dark:border-border-dark">
           <div className="flex items-center">
-            <DocumentTextIcon className="h-8 w-8 text-blue-500" />
+            <div className="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-full">
+              <DocumentTextIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            </div>
             <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('navigation.notes')}</h3>
-              <p className="text-gray-600 dark:text-gray-400">
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
                 {notes?.length || 0}
-                {' '}
-                {t('navigation.notes').toLowerCase()}
-              </p>
+              </div>
+              <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('navigation.notes')}</h3>
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="bg-component dark:bg-component-dark p-6 rounded-lg shadow-sm border border-border dark:border-border-dark">
           <div className="flex items-center">
-            <CodeBracketIcon className="h-8 w-8 text-green-500" />
+            <div className="bg-green-100 dark:bg-green-900/50 p-3 rounded-full">
+              <CodeBracketIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
+            </div>
             <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('navigation.snippets')}</h3>
-              <p className="text-gray-600 dark:text-gray-400">
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
                 {snippets?.length || 0}
-                {' '}
-                {t('navigation.snippets').toLowerCase()}
-              </p>
+              </div>
+              <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('navigation.snippets')}</h3>
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="bg-component dark:bg-component-dark p-6 rounded-lg shadow-sm border border-border dark:border-border-dark">
           <div className="flex items-center">
-            <CheckCircleIcon className="h-8 w-8 text-purple-500" />
+            <div className="bg-purple-100 dark:bg-purple-900/50 p-3 rounded-full">
+              <CheckCircleIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+            </div>
             <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('navigation.todos')}</h3>
-              <p className="text-gray-600 dark:text-gray-400">
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
                 {todos ? (todos.todo.length + todos.inProgress.length + todos.done.length) : 0}
-                {' '}
-                {t('navigation.todos').toLowerCase()}
-              </p>
+              </div>
+              <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('navigation.todos')}</h3>
             </div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="bg-component dark:bg-component-dark p-6 rounded-lg shadow-sm border border-border dark:border-border-dark">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('dashboard.recentNotes')}</h3>
           {notes && notes.length > 0
             ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {notes.slice(0, 5).map(note => (
-                    <div key={note._id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div key={note._id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-600/50 rounded-md transition-colors cursor-pointer">
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium text-gray-900 dark:text-white truncate">
                           {note.title || t('common.untitled')}
@@ -512,13 +602,13 @@ function DashboardPage() {
               )}
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="bg-component dark:bg-component-dark p-6 rounded-lg shadow-sm border border-border dark:border-border-dark">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('dashboard.recentSnippets')}</h3>
           {snippets && snippets.length > 0
             ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {snippets.slice(0, 5).map(snippet => (
-                    <div key={snippet._id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div key={snippet._id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-600/50 rounded-md transition-colors cursor-pointer">
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium text-gray-900 dark:text-white truncate">
                           {snippet.title}
@@ -546,16 +636,16 @@ function DashboardPage() {
               )}
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="bg-component dark:bg-component-dark p-6 rounded-lg shadow-sm border border-border dark:border-border-dark">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('dashboard.recentTodos')}</h3>
           {todos && (todos.todo.length > 0 || todos.inProgress.length > 0)
             ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {[...todos.todo, ...todos.inProgress]
                     .sort((a, b) => b._creationTime - a._creationTime)
                     .slice(0, 5)
                     .map(todo => (
-                      <div key={todo._id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <div key={todo._id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-600/50 rounded-md transition-colors cursor-pointer">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <div className={`w-2 h-2 rounded-full ${todo.status === 'todo'

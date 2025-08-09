@@ -166,7 +166,9 @@
     "dueToday": "Due today",
     "dueTomorrow": "Due tomorrow",
     "showCompleted": "Show completed",
-    "hideCompleted": "Hide completed"
+    "hideCompleted": "Hide completed",
+    "addPlaceholder": "What needs to be done?",
+    "searchPlaceholder": "Search todos..."
   },
   "settings": {
     "title": "Settings",
@@ -228,5 +230,94 @@
     "monthsAgo_plural": "{{count}} months ago",
     "yearsAgo": "{{count}} year ago",
     "yearsAgo_plural": "{{count}} years ago"
+  },
+  "toasts": {
+    "copySuccess": "Copied to clipboard!",
+    "copySuccessDesc": "Content has been copied successfully.",
+    "copyError": "Failed to copy",
+    "copyErrorDesc": "Could not copy content to clipboard.",
+    "noteCreated": "Note created!",
+    "noteCreatedDesc": "Start writing your new note.",
+    "noteSaved": "Note saved!",
+    "noteSavedDesc": "Your changes have been automatically saved.",
+    "noteDeleted": "Note deleted",
+    "noteDeletedDesc": "The note has been permanently removed.",
+    "notePinned": "Note pinned",
+    "notePinnedDesc": "Added to pinned notes.",
+    "noteUnpinned": "Note unpinned",
+    "noteUnpinnedDesc": "Removed from pinned notes.",
+    "snippetCreated": "Snippet created!",
+    "snippetCreatedDesc": "Your new snippet is ready to use.",
+    "snippetUpdated": "Snippet updated!",
+    "snippetUpdatedDesc": "Your changes have been saved.",
+    "snippetDeleted": "Snippet deleted",
+    "snippetDeletedDesc": "The snippet has been permanently removed.",
+    "snippetPinned": "Snippet pinned",
+    "snippetPinnedDesc": "Added to pinned snippets.",
+    "snippetUnpinned": "Snippet unpinned",
+    "snippetUnpinnedDesc": "Removed from pinned snippets.",
+    "todoCreated": "Todo created!",
+    "todoCreatedDesc": "New task added to your todo list.",
+    "todoUpdated": "Todo updated!",
+    "todoUpdatedDesc": "Your changes have been saved.",
+    "todoDeleted": "Todo deleted",
+    "todoDeletedDesc": "The task has been removed.",
+    "todoMoved": "Todo moved!",
+    "todoMovedDesc": "Moved to \"{{status}}\" column.",
+    "signInSuccess": "Welcome back!",
+    "signInSuccessDesc": "You have successfully signed in.",
+    "signUpSuccess": "Account created!",
+    "signUpSuccessDesc": "Your account has been created and you are now signed in.",
+    "signInAnonymousSuccess": "Signed in anonymously!",
+    "signInAnonymousSuccessDesc": "You can start using the app right away.",
+    "signOutSuccess": "Signed out successfully",
+    "signOutSuccessDesc": "You have been logged out of your account.",
+    "signInAnonymousError": "Failed to sign in anonymously",
+    "signInAnonymousErrorDesc": "Please try again.",
+    "operationError": "Operation failed",
+    "operationErrorDesc": "Please try again."
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "Welcome to Kortex! 👋",
+      "content": "Let's take a quick tour of your new workspace. Click \"Next\" to get started!"
+    },
+    "dashboard": {
+      "title": "Your Dashboard",
+      "content": "Here's an overview of all your content. You can see counts of notes, snippets, and todos at a glance."
+    },
+    "navigation": {
+      "title": "Navigation Menu",
+      "content": "Use this sidebar to switch between different sections: Notes, Snippets, Todos, and Settings."
+    },
+    "notes": {
+      "title": "Rich Text Notes",
+      "content": "Create and edit rich text notes. Click the + button to create your first note!"
+    },
+    "notesAutosave": {
+      "title": "Auto-save Magic ✨",
+      "content": "Your notes are automatically saved as you type. No need to worry about losing your work!"
+    },
+    "snippets": {
+      "title": "Code Snippets",
+      "content": "Save reusable code snippets and templates. Perfect for storing frequently used code blocks!"
+    },
+    "snippetsCopy": {
+      "title": "One-Click Copy",
+      "content": "Click the copy button on any snippet to instantly copy it to your clipboard. So convenient!"
+    },
+    "todosKanban": {
+      "title": "Kanban Board",
+      "content": "Organize your tasks with this visual kanban board. Drag and drop cards between columns!"
+    },
+    "todosAdd": {
+      "title": "Add New Tasks",
+      "content": "Type in your task and click \"Add\" to create new todo items. Keep track of everything!"
+    },
+    "step": "Step {{current}} of {{total}}",
+    "back": "Back",
+    "next": "Next",
+    "skip": "Skip",
+    "finish": "Finish"
   }
 }

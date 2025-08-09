@@ -10,6 +10,7 @@ import {
 import { useMutation, useQuery } from 'convex/react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
@@ -138,9 +139,15 @@ export function TodosPage() {
         description: '',
       })
       setNewTodoTitle('')
+      toast.success(t('toasts.todoCreated'), {
+        description: t('toasts.todoCreatedDesc'),
+      })
     }
     catch (error) {
       console.error('Failed to create todo:', error)
+      toast.error(t('toasts.operationError'), {
+        description: t('toasts.operationErrorDesc'),
+      })
     }
   }
 
@@ -165,9 +172,15 @@ export function TodosPage() {
         dueDate: editDueDate ? new Date(editDueDate).getTime() : undefined,
       })
       setEditingTodo(null)
+      toast.success(t('toasts.todoUpdated'), {
+        description: t('toasts.todoUpdatedDesc'),
+      })
     }
     catch (error) {
       console.error('Failed to update todo:', error)
+      toast.error(t('toasts.operationError'), {
+        description: t('toasts.operationErrorDesc'),
+      })
     }
   }
 
@@ -176,9 +189,15 @@ export function TodosPage() {
 
     try {
       await deleteTodo({ id })
+      toast.error(t('toasts.todoDeleted'), {
+        description: t('toasts.todoDeletedDesc'),
+      })
     }
     catch (error) {
       console.error('Failed to delete todo:', error)
+      toast.error(t('toasts.operationError'), {
+        description: t('toasts.operationErrorDesc'),
+      })
     }
   }
 
@@ -199,9 +218,20 @@ export function TodosPage() {
 
     try {
       await updateTodo({ id: draggedTodo._id, status })
+      const statusLabels = {
+        todo: t('todos.statuses.todo'),
+        in_progress: t('todos.statuses.in_progress'),
+        done: t('todos.statuses.done')
+      }
+      toast.success(t('toasts.todoMoved'), {
+        description: t('toasts.todoMovedDesc', { status: statusLabels[status] }),
+      })
     }
     catch (error) {
       console.error('Failed to update todo status:', error)
+      toast.error(t('toasts.operationError'), {
+        description: t('toasts.operationErrorDesc'),
+      })
     }
     setDraggedTodo(null)
     setDragOverStatus(null)
@@ -242,11 +272,12 @@ export function TodosPage() {
   }
 
   // Nested components with access to component state
-  function TodoCard({ todo, isEditing }: { todo: Todo, isEditing: boolean }) {
+  function TodoCard({ todo, isEditing, style }: { todo: Todo, isEditing: boolean, style?: React.CSSProperties }) {
     return (
       <div
-        className={`group relative bg-white dark:bg-gray-800 rounded-lg border p-4 mb-3 transition-all duration-200 hover:shadow-md ${draggedTodo?._id === todo._id ? 'opacity-50' : ''
-        } ${dragOverStatus === todo.status ? 'ring-2 ring-blue-500' : ''}`}
+        style={style}
+        className={`group relative rounded-md p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm mb-3 transition-all duration-200 hover:shadow-lg hover:-translate-y-1 animate-slide-in-from-bottom ${draggedTodo?._id === todo._id ? 'opacity-50' : ''
+        } ${dragOverStatus === todo.status ? 'ring-2 ring-blue-500' : ''} ${todo.status === 'done' ? 'opacity-70' : ''}`}
         draggable
         onDragStart={e => handleDragStart(e, todo)}
         onDragEnd={handleDragEnd}
@@ -307,6 +338,12 @@ export function TodosPage() {
             )
           : (
               <>
+                {/* Grab handle - visible on hover */}
+                <div className="hidden group-hover:block absolute top-2 right-2 flex flex-col gap-0.5">
+                  <div className="w-4 h-0.5 bg-slate-400 rounded" />
+                  <div className="w-4 h-0.5 bg-slate-400 rounded" />
+                </div>
+
                 <div className="flex items-start gap-3">
                   <button
                     type="button"
@@ -322,13 +359,13 @@ export function TodosPage() {
                   </button>
 
                   <div className="flex-1 min-w-0">
-                    <h3 className={`font-medium text-gray-900 dark:text-white transition-all duration-200 ${todo.status === 'done' ? 'line-through text-gray-500 dark:text-gray-400' : ''
+                    <h3 className={`font-medium text-gray-900 dark:text-white transition-all duration-200 ${todo.status === 'done' ? 'line-through opacity-70' : ''
                     }`}
                     >
                       {todo.title}
                     </h3>
                     {todo.description && (
-                      <p className={`text-sm text-gray-600 dark:text-gray-400 mt-1 ${todo.status === 'done' ? 'line-through' : ''
+                      <p className={`text-sm text-gray-600 dark:text-gray-400 mt-1 ${todo.status === 'done' ? 'line-through opacity-70' : ''
                       }`}
                       >
                         {todo.description}
@@ -387,6 +424,33 @@ export function TodosPage() {
     status: TodoStatus
     color: string
   }) {
+    const getStatusBorder = () => {
+      switch (status) {
+        case 'todo':
+          return 'border-t-4 border-blue-500'
+        case 'in_progress':
+          return 'border-t-4 border-yellow-500'
+        case 'done':
+          return 'border-t-4 border-green-500'
+        default:
+          return 'border-t-4 border-gray-500'
+      }
+    }
+
+    const getDragOverBorder = () => {
+      if (dragOverStatus !== status) return ''
+      switch (status) {
+        case 'todo':
+          return 'border-2 border-dashed border-blue-500'
+        case 'in_progress':
+          return 'border-2 border-dashed border-yellow-500'
+        case 'done':
+          return 'border-2 border-dashed border-green-500'
+        default:
+          return 'border-2 border-dashed border-gray-500'
+      }
+    }
+
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -396,12 +460,12 @@ export function TodosPage() {
           </span>
         </div>
         <div
-          className={`p-4 rounded-lg border-2 border-dashed ${color} min-h-[200px]`}
+          className={`p-4 rounded-lg ${getStatusBorder()} ${getDragOverBorder() || 'border border-gray-200 dark:border-gray-700'} min-h-[200px] transition-all duration-200`}
           onDragOver={e => handleDragOver(e, status)}
           onDrop={e => void handleDrop(e, status)}
         >
-          {todos.map(todo => (
-            <TodoCard key={todo._id} todo={todo} isEditing={editingTodo === todo._id} />
+          {todos.map((todo, index) => (
+            <TodoCard key={todo._id} todo={todo} isEditing={editingTodo === todo._id} style={{ animationDelay: `${index * 50}ms` }} />
           ))}
           {todos.length === 0 && (
             <div className="text-center text-gray-500 dark:text-gray-400 py-8">
@@ -441,10 +505,12 @@ export function TodosPage() {
             onChange={e => setNewTodoTitle(e.target.value)}
             placeholder={t('todos.addPlaceholder')}
             className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            data-onboarding="add-todo-input"
           />
           <button
             type="submit"
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            data-onboarding="add-todo-button"
           >
             <PlusIcon className="h-4 w-4" />
             {t('common.add')}
@@ -470,7 +536,7 @@ export function TodosPage() {
       </div>
 
       {/* Kanban Board */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" data-onboarding="kanban-board">
         <TodoColumn
           title={t('todos.statuses.todo')}
           todos={filteredTodos.todo}

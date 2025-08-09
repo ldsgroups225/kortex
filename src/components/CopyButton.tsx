@@ -1,6 +1,7 @@
 import { CheckIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 interface CopyButtonProps {
   content: string
@@ -25,9 +26,15 @@ export function CopyButton({
       await navigator.clipboard.writeText(content)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+      toast.success(t('toasts.copySuccess'), {
+        description: t('toasts.copySuccessDesc'),
+      })
     }
     catch (error) {
       console.error('Failed to copy to clipboard:', error)
+      toast.error(t('toasts.copyError'), {
+        description: t('toasts.copyErrorDesc'),
+      })
     }
   }
 

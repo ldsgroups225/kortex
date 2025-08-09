@@ -10,6 +10,7 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
 import { useMutation, useQuery } from 'convex/react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
@@ -59,9 +60,15 @@ export function NotesPage() {
         ...pendingChanges,
       })
       setPendingChanges({})
+      toast.success(t('toasts.noteSaved'), {
+        description: t('toasts.noteSavedDesc'),
+      })
     }
     catch (error) {
       console.error('Failed to save changes:', error)
+      toast.error(t('toasts.operationError'), {
+        description: t('toasts.operationErrorDesc'),
+      })
     }
   }, [selectedNoteId, pendingChanges, updateNote])
 
@@ -157,9 +164,15 @@ export function NotesPage() {
         tags: [],
       })
       setSelectedNoteId(noteId)
+      toast.success(t('toasts.noteCreated'), {
+        description: t('toasts.noteCreatedDesc'),
+      })
     }
     catch (error) {
       console.error('Failed to create note:', error)
+      toast.error(t('toasts.operationError'), {
+        description: t('toasts.operationErrorDesc'),
+      })
     }
     finally {
       setIsCreating(false)
@@ -173,18 +186,31 @@ export function NotesPage() {
         setSelectedNoteId(null)
       }
       setShowDeleteConfirm(null)
+      toast.error(t('toasts.noteDeleted'), {
+        description: t('toasts.noteDeletedDesc'),
+      })
     }
     catch (error) {
       console.error('Failed to delete note:', error)
+      toast.error(t('toasts.operationError'), {
+        description: t('toasts.operationErrorDesc'),
+      })
     }
   }
 
   const handleTogglePin = async (noteId: Id<'notes'>) => {
     try {
       await togglePin({ noteId })
+      const note = notes?.find(n => n._id === noteId)
+      toast.success(note?.pinned ? t('toasts.noteUnpinned') : t('toasts.notePinned'), {
+        description: note?.pinned ? t('toasts.noteUnpinnedDesc') : t('toasts.notePinnedDesc'),
+      })
     }
     catch (error) {
       console.error('Failed to toggle pin:', error)
+      toast.error(t('toasts.operationError'), {
+        description: t('toasts.operationErrorDesc'),
+      })
     }
   }
 
@@ -222,6 +248,7 @@ export function NotesPage() {
               onClick={() => void handleCreateNote()}
               disabled={isCreating}
               className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              data-onboarding="create-note-button"
             >
               <PlusIcon className="h-4 w-4" />
             </button>
@@ -254,14 +281,15 @@ export function NotesPage() {
                 </div>
               )
             : (
-                <div className="space-y-1 p-2">
-                  {displayedNotes?.map(note => (
+                <div className="space-y-1 p-2" data-onboarding="notes-list">
+                  {displayedNotes?.map((note, index) => (
                     <div
                       key={note._id}
                       onClick={() => setSelectedNoteId(note._id)}
-                      className={`p-3 rounded-lg cursor-pointer transition-colors group ${selectedNoteId === note._id
-                        ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                      style={{ animationDelay: `${index * 50}ms` }}
+                      className={`p-4 rounded-md cursor-pointer transition-colors group animate-slide-in-from-bottom ${selectedNoteId === note._id
+                        ? 'bg-blue-50 dark:bg-primary/10'
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-700/40'
                       }`}
                     >
                       <div className="flex items-start justify-between mb-2">
@@ -346,8 +374,9 @@ export function NotesPage() {
                       type="text"
                       value={pendingChanges.title ?? selectedNote.title}
                       onChange={e => updateTitle(e.target.value)}
-                      className="flex-1 text-2xl font-bold bg-transparent border-none outline-none text-gray-900 dark:text-white placeholder-gray-500"
+                      className="flex-1 text-2xl font-bold border-none bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-500"
                       placeholder="Note title..."
+                      data-onboarding="note-title"
                     />
                     <CopyButton
                       content={pendingChanges.title ?? selectedNote.title}
@@ -363,7 +392,7 @@ export function NotesPage() {
                     placeholder="Add tags..."
                   />
 
-                  <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                     <div className="flex items-center gap-4">
                       <span>
                         Created:
@@ -396,6 +425,7 @@ export function NotesPage() {
                     onChange={updateContent}
                     placeholder="Start writing your note..."
                     className="h-full"
+                    data-onboarding="note-editor"
                   />
                 </div>
               </>

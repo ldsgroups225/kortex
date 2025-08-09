@@ -1,6 +1,8 @@
-# SaaS App Base Setup
+# Kortex: The All-in-One Workspace
 
-This is a project built with [Chef](https://chef.convex.dev) using [Convex](https://convex.dev) as its backend.
+**Kortex** is the intelligent workspace that boosts your productivity. Seamlessly manage rich-text notes, organize code snippets, and track tasks on a visual Kanban board. Your ultimate tool for clarity and focus.
+
+This project is built with [Chef](https://chef.convex.dev) using [Convex](https://convex.dev) as its backend.
  You can find docs about Chef with useful information like how to deploy to production [here](https://docs.convex.dev/chef).
 
 This project is connected to the Convex deployment named [`insightful-parakeet-551`](https://dashboard.convex.dev/d/insightful-parakeet-551).

@@ -1,8 +1,9 @@
 {
-  "name": "flex-template",
+  "name": "kortex",
   "type": "module",
   "version": "0.0.0",
   "private": true,
+  "description": "Kortex: The All-in-One Workspace for Notes, Code, and Tasks",
   "scripts": {
     "dev": "npm-run-all --parallel dev:frontend dev:backend",
     "dev:frontend": "vite --open",
@@ -31,11 +32,12 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-i18next": "^15.6.1",
+    "react-tooltip": "^5.29.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^5.1.0",
+    "@antfu/eslint-config": "^5.2.0",
     "@eslint-react/eslint-plugin": "^1.52.3",
     "@types/node": "^22.17.0",
     "@types/react": "^19.1.9",

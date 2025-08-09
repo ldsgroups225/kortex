@@ -13,6 +13,7 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
 import { useMutation, useQuery } from 'convex/react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
@@ -158,18 +159,31 @@ export function SnippetsPage() {
     try {
       await deleteSnippet({ snippetId })
       setShowDeleteConfirm(null)
+      toast.error(t('toasts.snippetDeleted'), {
+        description: t('toasts.snippetDeletedDesc'),
+      })
     }
     catch (error) {
       console.error('Failed to delete snippet:', error)
+      toast.error(t('toasts.operationError'), {
+        description: t('toasts.operationErrorDesc'),
+      })
     }
   }
 
   const handleTogglePin = async (snippetId: Id<'snippets'>) => {
     try {
       await togglePin({ snippetId })
+      const snippet = snippets?.find(s => s._id === snippetId)
+      toast.success(snippet?.pinned ? t('toasts.snippetUnpinned') : t('toasts.snippetPinned'), {
+        description: snippet?.pinned ? t('toasts.snippetUnpinnedDesc') : t('toasts.snippetPinnedDesc'),
+      })
     }
     catch (error) {
       console.error('Failed to toggle pin:', error)
+      toast.error(t('toasts.operationError'), {
+        description: t('toasts.operationErrorDesc'),
+      })
     }
   }
 
@@ -198,6 +212,7 @@ export function SnippetsPage() {
           type="button"
           onClick={handleCreateSnippet}
           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+          data-onboarding="create-snippet-button"
         >
           <PlusIcon className="h-4 w-4" />
           {t('snippets.addSnippet')}
@@ -244,69 +259,37 @@ export function SnippetsPage() {
             </div>
           )
         : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-              {displayedSnippets?.map(snippet => (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4" data-onboarding="snippets-grid">
+              {displayedSnippets?.map((snippet, index) => (
                 <div
                   key={snippet._id}
-                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow group"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow group animate-slide-in-from-bottom"
                 >
                   {/* Header */}
-                  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex items-start justify-between mb-2">
+                  <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex justify-between items-center">
                       <h4 className="font-medium text-gray-900 dark:text-white truncate flex-1">
                         {snippet.title}
                       </h4>
-                      <div className="flex items-center gap-1 ml-2">
-                        <button
-                          type="button"
-                          onClick={() => void handleTogglePin(snippet._id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
-                          title={snippet.pinned ? 'Unpin' : 'Pin'}
-                        >
-                          {snippet.pinned
-                            ? (
-                                <StarIconSolid className="h-4 w-4 text-yellow-500" />
-                              )
-                            : (
-                                <StarIcon className="h-4 w-4 text-gray-400" />
-                              )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleEditSnippet(snippet._id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
-                          title="Edit"
-                        >
-                          <PencilIcon className="h-4 w-4 text-gray-400" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowDeleteConfirm(snippet._id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
-                          title="Delete"
-                        >
-                          <TrashIcon className="h-4 w-4 text-red-500" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-xs">
-                      {snippet.language && (
-                        <span className={`px-2 py-1 rounded-full ${getLanguageStyle(snippet.language)}`}>
-                          {LANGUAGES.find(l => l.value === snippet.language)?.label || snippet.language}
+                      <div className="flex items-center gap-2">
+                        {snippet.language && (
+                          <span className={`bg-slate-100 dark:bg-slate-700 text-xs px-2 py-1 rounded-full ${getLanguageStyle(snippet.language)}`}>
+                            {LANGUAGES.find(l => l.value === snippet.language)?.label || snippet.language}
+                          </span>
+                        )}
+                        <span className="bg-slate-100 dark:bg-slate-700 text-xs px-2 py-1 rounded-full text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                          <TagIcon className="h-3 w-3" />
+                          {snippet.category}
                         </span>
-                      )}
-                      <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full flex items-center gap-1">
-                        <TagIcon className="h-3 w-3" />
-                        {snippet.category}
-                      </span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Content Preview */}
+                  {/* Code Preview Block */}
                   <div className="p-4">
-                    <pre className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 p-3 rounded border overflow-hidden">
-                      <code className="line-clamp-4">
+                    <pre className="bg-slate-800 text-slate-200 font-mono text-sm p-4 rounded-md max-h-48 overflow-auto">
+                      <code>
                         {snippet.content.length > 200
                           ? `${snippet.content.substring(0, 200)}...`
                           : snippet.content}
@@ -314,19 +297,52 @@ export function SnippetsPage() {
                     </pre>
                   </div>
 
-                  {/* Footer */}
-                  <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                  {/* Footer + Action Buttons */}
+                  <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
                     <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                       <ClockIcon className="h-3 w-3" />
                       {formatDate(snippet._creationTime)}
                     </div>
 
-                    <CopyButton
-                      content={snippet.content}
-                      variant="button"
-                      size="sm"
-                      showText={true}
-                    />
+                    <div className="flex items-center gap-1">
+                      <CopyButton
+                        content={snippet.content}
+                        variant="icon"
+                        size="sm"
+                        className="bg-transparent hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded"
+                        title="Copy to clipboard"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleTogglePin(snippet._id)}
+                        className="group-hover:opacity-100 opacity-0 transition-opacity duration-200 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded"
+                        title={snippet.pinned ? 'Unpin' : 'Pin'}
+                      >
+                        {snippet.pinned
+                          ? (
+                              <StarIconSolid className="h-4 w-4 text-yellow-500" />
+                            )
+                          : (
+                              <StarIcon className="h-4 w-4 text-gray-400" />
+                            )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEditSnippet(snippet._id)}
+                        className="group-hover:opacity-100 opacity-0 transition-opacity duration-200 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded"
+                        title="Edit"
+                      >
+                        <PencilIcon className="h-4 w-4 text-gray-400" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(snippet._id)}
+                        className="group-hover:opacity-100 opacity-0 transition-opacity duration-200 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded"
+                        title="Delete"
+                      >
+                        <TrashIcon className="h-4 w-4 text-red-500" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -342,15 +358,24 @@ export function SnippetsPage() {
             try {
               if (editingSnippet) {
                 await updateSnippet({ snippetId: editingSnippet, ...data })
+                toast.success(t('toasts.snippetUpdated'), {
+                  description: t('toasts.snippetUpdatedDesc'),
+                })
               }
               else {
                 await createSnippet(data)
+                toast.success(t('toasts.snippetCreated'), {
+                  description: t('toasts.snippetCreatedDesc'),
+                })
               }
               setShowEditor(false)
               setEditingSnippet(null)
             }
             catch (error) {
               console.error('Failed to save snippet:', error)
+              toast.error(t('toasts.operationError'), {
+                description: t('toasts.operationErrorDesc'),
+              })
             }
           }}
           onCancel={() => {
