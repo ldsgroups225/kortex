@@ -64,7 +64,8 @@
     "pinned": "Pinned",
     "unpinned": "Unpinned",
     "starred": "Starred",
-    "unstarred": "Unstarred"
+    "unstarred": "Unstarred",
+    "start": "Start"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -201,6 +202,44 @@
       "assignmentChangedDesc": "Todo assignment has been updated.",
       "permissionDenied": "Permission denied",
       "permissionDeniedDesc": "You don't have permission to perform this action."
+    },
+    "pomodoro": {
+      "startFocus": "Start Focus Session",
+      "focusMode": "Focus Mode",
+      "concentrationSession": "Concentration Session",
+      "workSession": "Work Session",
+      "shortBreak": "Short Break",
+      "longBreak": "Long Break",
+      "pause": "Pause",
+      "resume": "Resume",
+      "stop": "Stop",
+      "skip": "Skip",
+      "sessions": "Sessions",
+      "session": "Session",
+      "timeRemaining": "Time Remaining",
+      "workingOn": "Working on",
+      "takeABreak": "Take a break!",
+      "wellDone": "Well done!",
+      "breakTime": "Break time",
+      "backToWork": "Back to work!",
+      "sessionComplete": "Session complete",
+      "allSessionsComplete": "All sessions complete!",
+      "greatJob": "Great job completing your focus session!",
+      "focusSessionStarted": "Focus session started",
+      "focusSessionPaused": "Focus session paused",
+      "focusSessionResumed": "Focus session resumed",
+      "focusSessionStopped": "Focus session stopped",
+      "workSessionComplete": "Work session complete!",
+      "breakSessionComplete": "Break complete!",
+      "settings": {
+        "workDuration": "Work Duration (minutes)",
+        "shortBreakDuration": "Short Break (minutes)",
+        "longBreakDuration": "Long Break (minutes)",
+        "sessionsUntilLongBreak": "Sessions until long break",
+        "autoStartBreaks": "Auto-start breaks",
+        "autoStartSessions": "Auto-start work sessions",
+        "soundNotifications": "Sound notifications"
+      }
     }
   },
   "settings": {

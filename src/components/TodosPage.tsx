@@ -7,6 +7,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   PencilIcon,
+  PlayIcon,
   PlusIcon,
   TrashIcon,
   XMarkIcon,
@@ -18,6 +19,7 @@ import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
+import { PomodoroTimer } from './PomodoroTimer'
 import { SearchBar } from './SearchBar'
 import { TagInput } from './TagInput'
 import { UserSelector } from './UserSelector'
@@ -82,6 +84,7 @@ function TodoCard({
   dragOverStatus,
   formatDate,
   isOverdue,
+  handleStartPomodoro,
   t,
 }: {
   todo: Todo
@@ -113,6 +116,7 @@ function TodoCard({
   dragOverStatus: TodoStatus | null
   formatDate: (timestamp: number) => string
   isOverdue: (dueDate: number) => boolean
+  handleStartPomodoro: (todo: Todo) => void
   t: any
 }) {
   return (
@@ -293,6 +297,18 @@ function TodoCard({
                     content={`${todo.title}${todo.description ? `\n\n${todo.description}` : ''}`}
                     size="sm"
                   />
+                  {/* Only show play button for in-progress todos */}
+                  {todo.status === 'in_progress' && (
+                    <button
+                      type="button"
+                      onClick={() => handleStartPomodoro(todo)}
+                      className="p-1 text-gray-400 hover:text-green-500 transition-colors"
+                      disabled={todo.sending}
+                      title={t('todos.pomodoro.startFocus')}
+                    >
+                      <PlayIcon className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleEditTodo(todo)}
@@ -352,6 +368,7 @@ function TodoColumn({
   draggedTodo,
   formatDate,
   isOverdue,
+  handleStartPomodoro,
   t,
 }: {
   title: string
@@ -385,6 +402,7 @@ function TodoColumn({
   draggedTodo: Todo | null
   formatDate: (timestamp: number) => string
   isOverdue: (dueDate: number) => boolean
+  handleStartPomodoro: (todo: Todo) => void
   t: any
 }) {
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -473,6 +491,7 @@ function TodoColumn({
             dragOverStatus={dragOverStatus}
             formatDate={formatDate}
             isOverdue={isOverdue}
+            handleStartPomodoro={handleStartPomodoro}
             t={t}
           />
         ))}
@@ -609,6 +628,8 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
   })
   const [mobileView, setMobileView] = useState<'board' | 'list'>('board')
   const [showMobileFilters, setShowMobileFilters] = useState(false)
+  // Pomodoro state
+  const [activePomodoroTodo, setActivePomodoroTodo] = useState<Todo | null>(null)
 
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -924,6 +945,24 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     return new Date(dueDate) < new Date()
   }
 
+  // Pomodoro handlers
+  const handleStartPomodoro = (todo: Todo) => {
+    setActivePomodoroTodo(todo)
+    toast.success(t('todos.pomodoro.focusSessionStarted'))
+  }
+
+  const handleClosePomodoro = () => {
+    setActivePomodoroTodo(null)
+    toast.info(t('todos.pomodoro.focusSessionStopped'))
+  }
+
+  const handleCompletePomodoroSession = () => {
+    toast.success(t('todos.pomodoro.allSessionsComplete'), {
+      description: t('todos.pomodoro.greatJob'),
+    })
+    setActivePomodoroTodo(null)
+  }
+
   // Show loading only on initial load, not for optimistic updates
   if (!todos && optimisticTodos.todo.length === 0 && optimisticTodos.inProgress.length === 0 && optimisticTodos.done.length === 0) {
     return (
@@ -935,6 +974,14 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
 
   return (
     <div className="flex h-full bg-white dark:bg-gray-900 relative">
+      {/* Pomodoro Timer Modal */}
+      {activePomodoroTodo && (
+        <PomodoroTimer
+          todoTitle={activePomodoroTodo.title}
+          onClose={handleClosePomodoro}
+          onComplete={handleCompletePomodoroSession}
+        />
+      )}
       {/* Mobile filters overlay */}
       {showMobileFilters && (
         <div
@@ -1225,6 +1272,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
                           setEditAssignedTo={setEditAssignedTo}
                           users={users}
                           currentUser={currentUser}
+                          handleStartPomodoro={handleStartPomodoro}
                         />
                       ))}
                       {statusTodos.length === 0 && (
@@ -1271,6 +1319,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               draggedTodo={draggedTodo}
               formatDate={formatDate}
               isOverdue={isOverdue}
+              handleStartPomodoro={handleStartPomodoro}
               t={t}
             />
             <TodoColumn
@@ -1301,6 +1350,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               draggedTodo={draggedTodo}
               formatDate={formatDate}
               isOverdue={isOverdue}
+              handleStartPomodoro={handleStartPomodoro}
               t={t}
               editAssignedTo={editAssignedTo}
               setEditAssignedTo={setEditAssignedTo}
@@ -1335,6 +1385,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               draggedTodo={draggedTodo}
               formatDate={formatDate}
               isOverdue={isOverdue}
+              handleStartPomodoro={handleStartPomodoro}
               t={t}
               editAssignedTo={editAssignedTo}
               setEditAssignedTo={setEditAssignedTo}

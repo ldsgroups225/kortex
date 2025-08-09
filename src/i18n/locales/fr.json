@@ -64,7 +64,8 @@
     "pinned": "Épinglé",
     "unpinned": "Non épinglé",
     "starred": "Favori",
-    "unstarred": "Non favori"
+    "unstarred": "Non favori",
+    "start": "Démarrer"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -200,7 +201,45 @@
       "assignmentChanged": "Assignation mise à jour",
       "assignmentChangedDesc": "L'assignation de la tâche a été mise à jour.",
       "permissionDenied": "Permission refusée",
-      "permissionDeniedDesc": "Vous n'avez pas la permission d'effectuer cette action."
+      "permissionDeniedDesc": "Vous n'avez pas l'autorisation d'effectuer cette action."
+    },
+    "pomodoro": {
+      "startFocus": "Commencer une session de concentration",
+      "focusMode": "Mode concentration",
+      "concentrationSession": "Session de concentration",
+      "workSession": "Session de travail",
+      "shortBreak": "Pause courte",
+      "longBreak": "Pause longue",
+      "pause": "Pause",
+      "resume": "Reprendre",
+      "stop": "Arrêter",
+      "skip": "Passer",
+      "sessions": "Sessions",
+      "session": "Session",
+      "timeRemaining": "Temps restant",
+      "workingOn": "Travail sur",
+      "takeABreak": "Prenez une pause !",
+      "wellDone": "Bien joué !",
+      "breakTime": "Temps de pause",
+      "backToWork": "Retour au travail !",
+      "sessionComplete": "Session terminée",
+      "allSessionsComplete": "Toutes les sessions terminées !",
+      "greatJob": "Excellent travail en terminant votre session de concentration !",
+      "focusSessionStarted": "Session de concentration commencée",
+      "focusSessionPaused": "Session de concentration en pause",
+      "focusSessionResumed": "Session de concentration reprise",
+      "focusSessionStopped": "Session de concentration arrêtée",
+      "workSessionComplete": "Session de travail terminée !",
+      "breakSessionComplete": "Pause terminée !",
+      "settings": {
+        "workDuration": "Durée de travail (minutes)",
+        "shortBreakDuration": "Pause courte (minutes)",
+        "longBreakDuration": "Pause longue (minutes)",
+        "sessionsUntilLongBreak": "Sessions avant pause longue",
+        "autoStartBreaks": "Démarrage automatique des pauses",
+        "autoStartSessions": "Démarrage automatique des sessions de travail",
+        "soundNotifications": "Notifications sonores"
+      }
     }
   },
   "settings": {
