@@ -1,132 +1,23 @@
-import React, { createContext, use, useCallback, useEffect, useMemo, useState } from 'react'
-
-interface OnboardingStep {
-  id: string
-  title: string
-  content: string
-  targetElement: string
-  position: 'top' | 'bottom' | 'left' | 'right'
-  page: 'dashboard' | 'notes' | 'snippets' | 'todos' | 'settings'
-}
-
-const onboardingSteps: OnboardingStep[] = [
-  {
-    id: 'welcome',
-    title: 'Welcome to NotesApp! 👋',
-    content: 'Let\'s take a quick tour of your new workspace. Click "Next" to get started!',
-    targetElement: '[data-onboarding="app-logo"]',
-    position: 'bottom',
-    page: 'dashboard',
-  },
-  {
-    id: 'dashboard-overview',
-    title: 'Your Dashboard',
-    content: 'Here\'s an overview of all your content. You can see counts of notes, snippets, and todos at a glance.',
-    targetElement: '[data-onboarding="stats-grid"]',
-    position: 'bottom',
-    page: 'dashboard',
-  },
-  {
-    id: 'navigation',
-    title: 'Navigation Menu',
-    content: 'Use this sidebar to switch between different sections: Notes, Snippets, Todos, and Settings.',
-    targetElement: '[data-onboarding="navigation"]',
-    position: 'right',
-    page: 'dashboard',
-  },
-  {
-    id: 'notes-intro',
-    title: 'Rich Text Notes',
-    content: 'Create and edit rich text notes. Click the + button to create your first note!',
-    targetElement: '[data-onboarding="create-note-button"]',
-    position: 'bottom',
-    page: 'notes',
-  },
-  {
-    id: 'notes-autosave',
-    title: 'Auto-save Magic ✨',
-    content: 'Your notes are automatically saved as you type. No need to worry about losing your work!',
-    targetElement: '[data-onboarding="note-editor"]',
-    position: 'top',
-    page: 'notes',
-  },
-  {
-    id: 'snippets-intro',
-    title: 'Code Snippets',
-    content: 'Save reusable code snippets and templates. Perfect for storing frequently used code blocks!',
-    targetElement: '[data-onboarding="create-snippet-button"]',
-    position: 'bottom',
-    page: 'snippets',
-  },
-  {
-    id: 'snippets-copy',
-    title: 'One-Click Copy',
-    content: 'Click the copy button on any snippet to instantly copy it to your clipboard. So convenient!',
-    targetElement: '[data-onboarding="snippets-grid"]',
-    position: 'top',
-    page: 'snippets',
-  },
-  {
-    id: 'todos-kanban',
-    title: 'Kanban Board',
-    content: 'Organize your tasks with this visual kanban board. Drag and drop cards between columns!',
-    targetElement: '[data-onboarding="kanban-board"]',
-    position: 'top',
-    page: 'todos',
-  },
-  {
-    id: 'todos-add',
-    title: 'Add New Tasks',
-    content: 'Type in your task and click "Add" to create new todo items. Keep track of everything!',
-    targetElement: '[data-onboarding="add-todo-input"]',
-    position: 'bottom',
-    page: 'todos',
-  },
-]
-
-interface OnboardingContextType {
-  isOnboardingActive: boolean
-  currentStep: OnboardingStep | null
-  currentStepIndex: number
-  totalSteps: number
-  startOnboarding: () => void
-  nextStep: () => void
-  prevStep: () => void
-  skipOnboarding: () => void
-  completeOnboarding: () => void
-  isStepVisible: (stepId: string) => boolean
-}
-
-const OnboardingContext = createContext<OnboardingContextType | null>(null)
-
-export function useOnboarding() {
-  const context = use(OnboardingContext)
-  if (!context) {
-    throw new Error('useOnboarding must be used within an OnboardingProvider')
-  }
-  return context
-}
+import type { OnboardingContextType } from '../lib/onboardingTypes'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { onboardingSteps } from '../lib/onboardingSteps'
+import { OnboardingContext } from '../lib/useOnboarding'
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const [isOnboardingActive, setIsOnboardingActive] = useState(false)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
-  const [isFirstVisit, setIsFirstVisit] = useState(false)
 
   useEffect(() => {
     const hasCompletedOnboarding = localStorage.getItem('onboardingCompleted')
     const hasSeenApp = localStorage.getItem('hasSeenApp')
 
-    if (!hasSeenApp) {
+    if (!hasSeenApp && !hasCompletedOnboarding) {
       localStorage.setItem('hasSeenApp', 'true')
-      setIsFirstVisit(true)
-    }
-
-    if (!hasCompletedOnboarding && isFirstVisit) {
       // Start onboarding automatically for first-time users after a brief delay
       const timeoutId = setTimeout(() => setIsOnboardingActive(true), 1000)
       return () => clearTimeout(timeoutId)
     }
-  }, [isFirstVisit])
+  }, [])
 
   const currentStep = isOnboardingActive ? onboardingSteps[currentStepIndex] : null
 
@@ -160,9 +51,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     localStorage.setItem('onboardingCompleted', 'true')
   }, [])
 
-  const isStepVisible = (stepId: string) => {
+  const isStepVisible = useCallback((stepId: string) => {
     return isOnboardingActive && currentStep?.id === stepId
-  }
+  }, [isOnboardingActive, currentStep?.id])
 
   const value: OnboardingContextType = useMemo(() => ({
     isOnboardingActive,

@@ -30,6 +30,7 @@
   },
   "common": {
     "add": "Add",
+    "adding": "Adding...",
     "edit": "Edit",
     "delete": "Delete",
     "save": "Save",
@@ -168,7 +169,18 @@
     "showCompleted": "Show completed",
     "hideCompleted": "Hide completed",
     "addPlaceholder": "What needs to be done?",
-    "searchPlaceholder": "Search todos..."
+    "searchPlaceholder": "Search todos...",
+    "welcome": "Welcome to your personal workspace",
+    "subtitle": "Organize your tasks with our visual Kanban board",
+    "filtersAndSearch": "Filters & Search",
+    "searchTasks": "Search Tasks",
+    "filterByStatus": "Filter by Status",
+    "viewMode": "View Mode",
+    "board": "Board",
+    "list": "List",
+    "menu": "Menu",
+    "noTodosInColumn": "No todos",
+    "noTasks": "No {{status}} tasks"
   },
   "settings": {
     "title": "Settings",

@@ -30,6 +30,7 @@
   },
   "common": {
     "add": "Ajouter",
+    "adding": "Ajout en cours...",
     "edit": "Modifier",
     "delete": "Supprimer",
     "save": "Enregistrer",
@@ -168,7 +169,18 @@
     "showCompleted": "Afficher les terminées",
     "hideCompleted": "Masquer les terminées",
     "addPlaceholder": "Qu'est-ce qui doit être fait ?",
-    "searchPlaceholder": "Rechercher des tâches..."
+    "searchPlaceholder": "Rechercher des tâches...",
+    "welcome": "Bienvenue dans votre espace de travail personnel",
+    "subtitle": "Organisez vos tâches avec notre tableau Kanban visuel",
+    "filtersAndSearch": "Filtres et recherche",
+    "searchTasks": "Rechercher des tâches",
+    "filterByStatus": "Filtrer par statut",
+    "viewMode": "Mode d'affichage",
+    "board": "Tableau",
+    "list": "Liste",
+    "menu": "Menu",
+    "noTodosInColumn": "Aucune tâche",
+    "noTasks": "Aucune tâche {{status}}"
   },
   "settings": {
     "title": "Paramètres",

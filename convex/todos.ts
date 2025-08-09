@@ -15,6 +15,7 @@ export const getTodos = query({
       title: v.string(),
       description: v.optional(v.string()),
       status: v.union(v.literal('todo'), v.literal('in_progress'), v.literal('done')),
+      tags: v.array(v.string()),
       dueDate: v.optional(v.number()),
       createdAt: v.optional(v.number()),
       updatedAt: v.optional(v.number()),
@@ -26,6 +27,7 @@ export const getTodos = query({
       title: v.string(),
       description: v.optional(v.string()),
       status: v.union(v.literal('todo'), v.literal('in_progress'), v.literal('done')),
+      tags: v.array(v.string()),
       dueDate: v.optional(v.number()),
       createdAt: v.optional(v.number()),
       updatedAt: v.optional(v.number()),
@@ -37,6 +39,7 @@ export const getTodos = query({
       title: v.string(),
       description: v.optional(v.string()),
       status: v.union(v.literal('todo'), v.literal('in_progress'), v.literal('done')),
+      tags: v.array(v.string()),
       dueDate: v.optional(v.number()),
       createdAt: v.optional(v.number()),
       updatedAt: v.optional(v.number()),
@@ -80,6 +83,7 @@ export const createTodo = mutation({
   args: {
     title: v.string(),
     description: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
     dueDate: v.optional(v.number()),
   },
   returns: v.id('todos'),
@@ -96,6 +100,7 @@ export const createTodo = mutation({
       title: args.title,
       description: args.description,
       status: 'todo' as const,
+      tags: args.tags || [],
       dueDate: args.dueDate,
       createdAt: now,
       updatedAt: now,
@@ -112,6 +117,7 @@ export const updateTodo = mutation({
     title: v.optional(v.string()),
     description: v.optional(v.string()),
     status: v.optional(v.union(v.literal('todo'), v.literal('in_progress'), v.literal('done'))),
+    tags: v.optional(v.array(v.string())),
     dueDate: v.optional(v.number()),
   },
   returns: v.null(),
@@ -134,6 +140,8 @@ export const updateTodo = mutation({
       updates.description = args.description
     if (args.status !== undefined)
       updates.status = args.status
+    if (args.tags !== undefined)
+      updates.tags = args.tags
     if (args.dueDate !== undefined)
       updates.dueDate = args.dueDate
 

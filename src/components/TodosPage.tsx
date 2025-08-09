@@ -4,19 +4,22 @@ import {
   Bars3Icon,
   CalendarIcon,
   CheckIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
   PencilIcon,
   PlusIcon,
   TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useMutation, useQuery } from 'convex/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
 import { SearchBar } from './SearchBar'
+import { TagInput } from './TagInput'
 
 type TodoStatus = 'todo' | 'in_progress' | 'done'
 
@@ -26,9 +29,15 @@ interface Todo {
   title: string
   description?: string
   status: TodoStatus
+  tags: string[]
   dueDate?: number
   createdAt?: number
   updatedAt?: number
+  // Optimistic UI fields
+  optimistic?: boolean
+  tempId?: string
+  sending?: boolean
+  deleting?: boolean
 }
 
 // Extracted TodoCard component
@@ -42,6 +51,8 @@ function TodoCard({
   setEditDescription,
   editStatus,
   setEditStatus,
+  editTags,
+  setEditTags,
   editDueDate,
   setEditDueDate,
   handleSaveEdit,
@@ -67,6 +78,8 @@ function TodoCard({
   setEditDescription: (desc: string) => void
   editStatus: TodoStatus
   setEditStatus: (status: TodoStatus) => void
+  editTags: string[]
+  setEditTags: (tags: string[]) => void
   editDueDate: string
   setEditDueDate: (date: string) => void
   handleSaveEdit: () => Promise<void>
@@ -86,8 +99,8 @@ function TodoCard({
     <div
       style={style}
       className={`group relative rounded-md p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm mb-3 transition-all duration-200 hover:shadow-lg hover:-translate-y-1 animate-slide-in-from-bottom ${draggedTodo?._id === todo._id ? 'opacity-50' : ''
-      } ${dragOverStatus === todo.status ? 'ring-2 ring-blue-500' : ''} ${todo.status === 'done' ? 'opacity-70' : ''}`}
-      draggable
+      } ${dragOverStatus === todo.status ? 'ring-2 ring-blue-500' : ''} ${todo.status === 'done' ? 'opacity-70' : ''} ${todo.sending ? 'ring-2 ring-blue-300 bg-blue-50 dark:bg-blue-900/20' : ''} ${todo.deleting ? 'opacity-50 scale-95' : ''} ${todo.optimistic ? 'border-dashed border-blue-300' : ''}`}
+      draggable={!todo.sending}
       onDragStart={e => handleDragStart(e, todo)}
       onDragEnd={handleDragEnd}
     >
@@ -107,6 +120,11 @@ function TodoCard({
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder={t('todos.descriptionPlaceholder')}
                 rows={2}
+              />
+              <TagInput
+                tags={editTags}
+                onChange={setEditTags}
+                placeholder={t('todos.tagsPlaceholder') || 'Add tags...'}
               />
               <div className="flex gap-2">
                 <select
@@ -168,11 +186,22 @@ function TodoCard({
                 </button>
 
                 <div className="flex-1 min-w-0">
-                  <h3 className={`font-medium text-gray-900 dark:text-white transition-all duration-200 ${todo.status === 'done' ? 'line-through opacity-70' : ''
-                  }`}
-                  >
-                    {todo.title}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className={`font-medium text-gray-900 dark:text-white transition-all duration-200 ${todo.status === 'done' ? 'line-through opacity-70' : ''
+                    }`}
+                    >
+                      {todo.title}
+                    </h3>
+                    {todo.sending && (
+                      <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
+                        <div className="animate-spin rounded-full h-3 w-3 border border-blue-600 border-t-transparent"></div>
+                        <span>Syncing...</span>
+                      </div>
+                    )}
+                    {todo.optimistic && !todo.sending && (
+                      <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-1 py-0.5 rounded">New</span>
+                    )}
+                  </div>
                   {todo.description && (
                     <p className={`text-sm text-gray-600 dark:text-gray-400 mt-1 ${todo.status === 'done' ? 'line-through opacity-70' : ''
                     }`}
@@ -191,9 +220,21 @@ function TodoCard({
                       </span>
                     </div>
                   )}
+                  {todo.tags && todo.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {todo.tags.map(tag => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className={`flex items-center gap-1 transition-opacity ${todo.sending ? 'opacity-50 pointer-events-none' : 'opacity-0 group-hover:opacity-100'}`}>
                   <CopyButton
                     content={`${todo.title}${todo.description ? `\n\n${todo.description}` : ''}`}
                     size="sm"
@@ -202,15 +243,17 @@ function TodoCard({
                     type="button"
                     onClick={() => handleEditTodo(todo)}
                     className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
+                    disabled={todo.sending}
                   >
                     <PencilIcon className="w-4 h-4" />
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      void handleDeleteTodo(todo._id)
+                      void handleDeleteTodo(todo._id || todo.tempId)
                     }}
                     className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                    disabled={todo.sending}
                   >
                     <TrashIcon className="w-4 h-4" />
                   </button>
@@ -237,6 +280,8 @@ function TodoColumn({
   setEditDescription,
   editStatus,
   setEditStatus,
+  editTags,
+  setEditTags,
   editDueDate,
   setEditDueDate,
   handleSaveEdit,
@@ -264,6 +309,8 @@ function TodoColumn({
   setEditDescription: (desc: string) => void
   editStatus: TodoStatus
   setEditStatus: (status: TodoStatus) => void
+  editTags: string[]
+  setEditTags: (tags: string[]) => void
   editDueDate: string
   setEditDueDate: (date: string) => void
   handleSaveEdit: () => Promise<void>
@@ -278,6 +325,7 @@ function TodoColumn({
   isOverdue: (dueDate: number) => boolean
   t: any
 }) {
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const getStatusBorder = () => {
     switch (status) {
       case 'todo':
@@ -308,14 +356,26 @@ function TodoColumn({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
-        <span className="px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full">
-          {todos.length}
-        </span>
+      <div
+        className="flex items-center justify-between cursor-pointer"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+      >
+        <div className="flex items-center">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+          <span className="ml-2 px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full">
+            {todos.length}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          aria-label={isCollapsed ? 'Expand column' : 'Collapse column'}
+        >
+          {isCollapsed ? <ChevronDownIcon className="h-5 w-5" /> : <ChevronUpIcon className="h-5 w-5" />}
+        </button>
       </div>
       <div
-        className={`p-4 rounded-lg ${getStatusBorder()} ${getDragOverBorder() || 'border border-gray-200 dark:border-gray-700'} min-h-[200px] transition-all duration-200`}
+        className={`p-4 rounded-lg ${getStatusBorder()} ${getDragOverBorder() || 'border border-gray-200 dark:border-gray-700'} ${isCollapsed ? 'h-0 min-h-0 p-0 overflow-hidden opacity-0' : 'min-h-[200px] opacity-100'} transition-all duration-300`}
         onDragOver={e => handleDragOver(e, status)}
         onDrop={e => void handleDrop(e, status)}
       >
@@ -332,6 +392,8 @@ function TodoColumn({
             setEditDescription={setEditDescription}
             editStatus={editStatus}
             setEditStatus={setEditStatus}
+            editTags={editTags}
+            setEditTags={setEditTags}
             editDueDate={editDueDate}
             setEditDueDate={setEditDueDate}
             handleSaveEdit={handleSaveEdit}
@@ -351,7 +413,7 @@ function TodoColumn({
         {todos.length === 0 && (
           <div className="text-center text-gray-500 dark:text-gray-400 py-8">
             <div className="text-4xl mb-2">📝</div>
-            <p className="text-sm">No todos</p>
+            <p className="text-sm">{t('todos.noTodosInColumn')}</p>
           </div>
         )}
       </div>
@@ -372,11 +434,102 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
   const deleteTodo = useMutation(api.todos.deleteTodo)
   const toggleTodoStatus = useMutation(api.todos.toggleTodoStatus)
 
+  // Optimistic state management
+  const [optimisticTodos, setOptimisticTodos] = useOptimistic(
+    todos || { todo: [], inProgress: [], done: [] },
+    (state, action: {
+      type: 'add' | 'update' | 'delete' | 'toggle'
+      payload: any
+    }) => {
+      switch (action.type) {
+        case 'add': {
+          const newTodo = {
+            ...action.payload,
+            optimistic: true,
+            sending: true,
+            _creationTime: Date.now(),
+          }
+          return {
+            ...state,
+            todo: [newTodo, ...state.todo],
+          }
+        }
+        case 'update': {
+          const { id, updates } = action.payload
+          const updateTodoInList = (todoList: Todo[]) =>
+            todoList.map(todo =>
+              todo._id === id || todo.tempId === id
+                ? { ...todo, ...updates, sending: true }
+                : todo,
+            )
+
+          return {
+            todo: updateTodoInList(state.todo),
+            inProgress: updateTodoInList(state.inProgress),
+            done: updateTodoInList(state.done),
+          }
+        }
+        case 'toggle': {
+          const { id, newStatus } = action.payload
+          const findAndMoveTodo = () => {
+            let todoToMove: Todo | null = null
+            const newState = { ...state }
+
+            // Find the todo in all lists
+            Object.keys(newState).forEach((status) => {
+              const list = newState[status as keyof typeof newState]
+              const index = list.findIndex(todo => todo._id === id || todo.tempId === id)
+              if (index !== -1) {
+                todoToMove = { ...list[index], status: newStatus, sending: true }
+                list.splice(index, 1)
+              }
+            })
+
+            // Add to new status list
+            if (todoToMove) {
+              const targetList = newStatus === 'in_progress' ? 'inProgress' : newStatus
+              newState[targetList as keyof typeof newState].unshift(todoToMove)
+            }
+
+            return newState
+          }
+
+          return findAndMoveTodo()
+        }
+        case 'delete': {
+          const { id } = action.payload
+          const filterTodo = (todoList: Todo[]) =>
+            todoList.map(todo =>
+              todo._id === id || todo.tempId === id
+                ? { ...todo, deleting: true, sending: true }
+                : todo,
+            )
+
+          return {
+            todo: filterTodo(state.todo),
+            inProgress: filterTodo(state.inProgress),
+            done: filterTodo(state.done),
+          }
+        }
+        default:
+          return state
+      }
+    },
+  )
+
+  // Transition states for smooth UI updates
+  const [isPendingCreate, startCreateTransition] = useTransition()
+  const [_isPendingUpdate, startUpdateTransition] = useTransition()
+  const [_isPendingDelete, startDeleteTransition] = useTransition()
+  const [_isPendingToggle, startToggleTransition] = useTransition()
+
   const [newTodoTitle, setNewTodoTitle] = useState('')
+  const [newTodoTags, setNewTodoTags] = useState<string[]>([])
   const [editingTodo, setEditingTodo] = useState<Id<'todos'> | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editStatus, setEditStatus] = useState<TodoStatus>('todo')
+  const [editTags, setEditTags] = useState<string[]>([])
   const [editDueDate, setEditDueDate] = useState<string>('')
   const [draggedTodo, setDraggedTodo] = useState<Todo | null>(null)
   const [dragOverStatus, setDragOverStatus] = useState<TodoStatus | null>(null)
@@ -395,26 +548,25 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     }
   }, [])
 
-  // Filter and search logic
+  // Filter and search logic with optimistic state
   const getFilteredTodos = () => {
-    if (!todos)
-      return { todo: [], inProgress: [], done: [] }
+    const todosToFilter = optimisticTodos
 
-    let filteredTodos = todos
+    let filteredTodos = todosToFilter
 
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       filteredTodos = {
-        todo: todos.todo.filter(todo =>
+        todo: todosToFilter.todo.filter(todo =>
           todo.title.toLowerCase().includes(query)
           || (todo.description && todo.description.toLowerCase().includes(query)),
         ),
-        inProgress: todos.inProgress.filter(todo =>
+        inProgress: todosToFilter.inProgress.filter(todo =>
           todo.title.toLowerCase().includes(query)
           || (todo.description && todo.description.toLowerCase().includes(query)),
         ),
-        done: todos.done.filter(todo =>
+        done: todosToFilter.done.filter(todo =>
           todo.title.toLowerCase().includes(query)
           || (todo.description && todo.description.toLowerCase().includes(query)),
         ),
@@ -466,25 +618,49 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
 
   const handleCreateTodo = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newTodoTitle.trim())
+    if (!newTodoTitle.trim() || isPendingCreate)
       return
 
-    try {
-      await createTodo({
-        title: newTodoTitle.trim(),
+    const title = newTodoTitle.trim()
+    const tempId = `temp-${Date.now()}-${Math.random()}`
+
+    // Optimistically add the todo
+    setOptimisticTodos({
+      type: 'add',
+      payload: {
+        _id: tempId,
+        tempId,
+        title,
         description: '',
-      })
-      setNewTodoTitle('')
-      toast.success(t('toasts.todoCreated'), {
-        description: t('toasts.todoCreatedDesc'),
-      })
-    }
-    catch (error) {
-      console.error('Failed to create todo:', error)
-      toast.error(t('toasts.operationError'), {
-        description: t('toasts.operationErrorDesc'),
-      })
-    }
+        status: 'todo' as TodoStatus,
+        tags: newTodoTags,
+        userId: 'temp' as Id<'users'>,
+      },
+    })
+
+    setNewTodoTitle('')
+    setNewTodoTags([])
+
+    startCreateTransition(async () => {
+      try {
+        await createTodo({
+          title,
+          description: '',
+          tags: newTodoTags,
+        })
+        toast.success(t('toasts.todoCreated'), {
+          description: t('toasts.todoCreatedDesc'),
+        })
+      }
+      catch (error) {
+        console.error('Failed to create todo:', error)
+        toast.error(t('toasts.operationError'), {
+          description: t('toasts.operationErrorDesc'),
+        })
+        // The optimistic update will be automatically reverted by useOptimistic
+        // when the component re-renders with the actual data
+      }
+    })
   }
 
   const handleEditTodo = (todo: Todo) => {
@@ -492,6 +668,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     setEditTitle(todo.title)
     setEditDescription(todo.description || '')
     setEditStatus(todo.status)
+    setEditTags(todo.tags || [])
     setEditDueDate(todo.dueDate ? new Date(todo.dueDate).toISOString().split('T')[0] : '')
   }
 
@@ -499,40 +676,71 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     if (!editingTodo || !editTitle.trim())
       return
 
-    try {
-      await updateTodo({
-        id: editingTodo,
-        title: editTitle.trim(),
-        description: editDescription,
-        status: editStatus,
-        dueDate: editDueDate ? new Date(editDueDate).getTime() : undefined,
-      })
-      setEditingTodo(null)
-      toast.success(t('toasts.todoUpdated'), {
-        description: t('toasts.todoUpdatedDesc'),
-      })
+    const updates = {
+      title: editTitle.trim(),
+      description: editDescription,
+      status: editStatus,
+      tags: editTags,
+      dueDate: editDueDate ? new Date(editDueDate).getTime() : undefined,
     }
-    catch (error) {
-      console.error('Failed to update todo:', error)
-      toast.error(t('toasts.operationError'), {
-        description: t('toasts.operationErrorDesc'),
-      })
-    }
+
+    // Optimistically update the todo
+    setOptimisticTodos({
+      type: 'update',
+      payload: { id: editingTodo, updates },
+    })
+
+    setEditingTodo(null)
+
+    startUpdateTransition(async () => {
+      try {
+        await updateTodo({
+          id: editingTodo,
+          ...updates,
+        })
+        toast.success(t('toasts.todoUpdated'), {
+          description: t('toasts.todoUpdatedDesc'),
+        })
+      }
+      catch (error) {
+        console.error('Failed to update todo:', error)
+        toast.error(t('toasts.operationError'), {
+          description: t('toasts.operationErrorDesc'),
+        })
+      }
+    })
   }
 
-  const handleDeleteTodo = async (id: Id<'todos'>) => {
-    try {
-      await deleteTodo({ id })
-      toast.error(t('toasts.todoDeleted'), {
-        description: t('toasts.todoDeletedDesc'),
-      })
-    }
-    catch (error) {
-      console.error('Failed to delete todo:', error)
-      toast.error(t('toasts.operationError'), {
-        description: t('toasts.operationErrorDesc'),
-      })
-    }
+  const handleDeleteTodo = async (id: Id<'todos'> | string) => {
+    // Optimistically mark as deleting
+    setOptimisticTodos({
+      type: 'delete',
+      payload: { id },
+    })
+
+    startDeleteTransition(async () => {
+      try {
+        // Only call API for real todos, not temporary ones
+        if (typeof id === 'string' && id.startsWith('temp-')) {
+          // For temporary todos, just show success message
+          toast.error(t('toasts.todoDeleted'), {
+            description: t('toasts.todoDeletedDesc'),
+          })
+          return
+        }
+
+        await deleteTodo({ id: id as Id<'todos'> })
+        toast.error(t('toasts.todoDeleted'), {
+          description: t('toasts.todoDeletedDesc'),
+        })
+      }
+      catch (error) {
+        console.error('Failed to delete todo:', error)
+        toast.error(t('toasts.operationError'), {
+          description: t('toasts.operationErrorDesc'),
+        })
+      }
+    })
   }
 
   const handleDragStart = (e: React.DragEvent, todo: Todo) => {
@@ -550,25 +758,45 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     if (!draggedTodo || draggedTodo.status === status)
       return
 
-    try {
-      await updateTodo({ id: draggedTodo._id, status })
-      const statusLabels = {
-        todo: t('todos.statuses.todo'),
-        in_progress: t('todos.statuses.in_progress'),
-        done: t('todos.statuses.done'),
-      }
-      toast.success(t('toasts.todoMoved'), {
-        description: t('toasts.todoMovedDesc', { status: statusLabels[status] }),
-      })
+    const todoId = draggedTodo._id || draggedTodo.tempId
+
+    // Optimistically move the todo
+    setOptimisticTodos({
+      type: 'toggle',
+      payload: { id: todoId, newStatus: status },
+    })
+
+    const statusLabels = {
+      todo: t('todos.statuses.todo'),
+      in_progress: t('todos.statuses.in_progress'),
+      done: t('todos.statuses.done'),
     }
-    catch (error) {
-      console.error('Failed to update todo status:', error)
-      toast.error(t('toasts.operationError'), {
-        description: t('toasts.operationErrorDesc'),
-      })
-    }
+
     setDraggedTodo(null)
     setDragOverStatus(null)
+
+    startToggleTransition(async () => {
+      try {
+        // Only call API for real todos, not temporary ones
+        if (typeof todoId === 'string' && todoId.startsWith('temp-')) {
+          toast.success(t('toasts.todoMoved'), {
+            description: t('toasts.todoMovedDesc', { status: statusLabels[status] }),
+          })
+          return
+        }
+
+        await updateTodo({ id: todoId as Id<'todos'>, status })
+        toast.success(t('toasts.todoMoved'), {
+          description: t('toasts.todoMovedDesc', { status: statusLabels[status] }),
+        })
+      }
+      catch (error) {
+        console.error('Failed to update todo status:', error)
+        toast.error(t('toasts.operationError'), {
+          description: t('toasts.operationErrorDesc'),
+        })
+      }
+    })
   }
 
   const handleDragEnd = () => {
@@ -597,7 +825,8 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     return new Date(dueDate) < new Date()
   }
 
-  if (!todos) {
+  // Show loading only on initial load, not for optimistic updates
+  if (!todos && optimisticTodos.todo.length === 0 && optimisticTodos.inProgress.length === 0 && optimisticTodos.done.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
@@ -625,7 +854,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
         <div className="flex flex-col h-full">
           {/* Mobile filters header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Filters & Search</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('todos.filtersAndSearch')}</h2>
             <button
               type="button"
               onClick={() => setShowMobileFilters(false)}
@@ -639,7 +868,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
           <div className="p-4 space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Search Tasks
+                {t('todos.searchTasks')}
               </label>
               <SearchBar
                 value={searchQuery}
@@ -650,7 +879,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Filter by Status
+                {t('todos.filterByStatus')}
               </label>
               <FilterBar
                 filters={filterConfigs}
@@ -663,7 +892,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
             {/* View Toggle - Mobile */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                View Mode
+                {t('todos.viewMode')}
               </label>
               <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
                 <button
@@ -675,7 +904,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
-                  Board
+                  {t('todos.board')}
                 </button>
                 <button
                   type="button"
@@ -686,7 +915,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
-                  List
+                  {t('todos.list')}
                 </button>
               </div>
             </div>
@@ -708,7 +937,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             <Bars3Icon className="h-5 w-5" />
-            <span className="text-sm font-medium">Menu</span>
+            <span className="text-sm font-medium">{t('todos.menu')}</span>
           </button>
 
           <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -731,7 +960,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               {t('todos.title')}
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Organize your tasks with our visual Kanban board
+              {t('todos.subtitle')}
             </p>
           </div>
 
@@ -770,10 +999,17 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
             />
             <button
               type="submit"
-              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1"
+              disabled={isPendingCreate || !newTodoTitle.trim()}
+              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1 disabled:bg-blue-400 disabled:cursor-not-allowed"
             >
-              <PlusIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Add</span>
+              {isPendingCreate
+                ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  )
+                : (
+                    <PlusIcon className="h-4 w-4" />
+                  )}
+              <span className="hidden sm:inline">{isPendingCreate ? (t('common.adding') || 'Adding...') : t('common.add')}</span>
             </button>
           </form>
         </div>
@@ -797,11 +1033,18 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
             />
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              disabled={isPendingCreate || !newTodoTitle.trim()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:bg-blue-400 disabled:cursor-not-allowed"
               data-onboarding="add-todo-button"
             >
-              <PlusIcon className="h-4 w-4" />
-              {t('common.add')}
+              {isPendingCreate
+                ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  )
+                : (
+                    <PlusIcon className="h-4 w-4" />
+                  )}
+              {isPendingCreate ? t('common.adding') || 'Adding...' : t('common.add')}
             </button>
           </form>
         </div>
@@ -841,6 +1084,8 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
                           setEditDescription={setEditDescription}
                           editStatus={editStatus}
                           setEditStatus={setEditStatus}
+                          editTags={editTags}
+                          setEditTags={setEditTags}
                           editDueDate={editDueDate}
                           setEditDueDate={setEditDueDate}
                           handleSaveEdit={handleSaveEdit}
@@ -860,10 +1105,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
                       {statusTodos.length === 0 && (
                         <div className="text-center text-gray-500 dark:text-gray-400 py-4">
                           <p className="text-sm">
-                            No
-                            {statusLabel.toLowerCase()}
-                            {' '}
-                            tasks
+                            {t('todos.noTasks', { status: statusLabel.toLowerCase() })}
                           </p>
                         </div>
                       )}
@@ -890,6 +1132,8 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               setEditDescription={setEditDescription}
               editStatus={editStatus}
               setEditStatus={setEditStatus}
+              editTags={editTags}
+              setEditTags={setEditTags}
               editDueDate={editDueDate}
               setEditDueDate={setEditDueDate}
               handleSaveEdit={handleSaveEdit}
@@ -918,6 +1162,8 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               setEditDescription={setEditDescription}
               editStatus={editStatus}
               setEditStatus={setEditStatus}
+              editTags={editTags}
+              setEditTags={setEditTags}
               editDueDate={editDueDate}
               setEditDueDate={setEditDueDate}
               handleSaveEdit={handleSaveEdit}
@@ -946,6 +1192,8 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               setEditDescription={setEditDescription}
               editStatus={editStatus}
               setEditStatus={setEditStatus}
+              editTags={editTags}
+              setEditTags={setEditTags}
               editDueDate={editDueDate}
               setEditDueDate={setEditDueDate}
               handleSaveEdit={handleSaveEdit}

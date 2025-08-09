@@ -55,6 +55,7 @@ const applicationTables = {
     title: v.string(),
     description: v.optional(v.string()),
     status: v.union(v.literal('todo'), v.literal('in_progress'), v.literal('done')),
+    tags: v.array(v.string()),
     dueDate: v.optional(v.number()),
     createdAt: v.optional(v.number()),
     updatedAt: v.optional(v.number()),
@@ -62,7 +63,15 @@ const applicationTables = {
     .index('by_user', ['userId'])
     .index('by_user_and_status', ['userId', 'status'])
     .index('by_status', ['status'])
-    .index('by_created_at', ['createdAt']),
+    .index('by_created_at', ['createdAt'])
+    .searchIndex('search_title', {
+      searchField: 'title',
+      filterFields: ['userId'],
+    })
+    .searchIndex('search_description', {
+      searchField: 'description',
+      filterFields: ['userId'],
+    }),
 
   userPreferences: defineTable({
     userId: v.id('users'),
