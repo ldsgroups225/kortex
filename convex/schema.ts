@@ -55,13 +55,16 @@ const applicationTables = {
     title: v.string(),
     description: v.optional(v.string()),
     status: v.union(v.literal('todo'), v.literal('in_progress'), v.literal('done')),
-    tags: v.array(v.string()),
+    tags: v.optional(v.array(v.string())),
+    assignedToUserId: v.optional(v.id('users')),
     dueDate: v.optional(v.number()),
     createdAt: v.optional(v.number()),
     updatedAt: v.optional(v.number()),
   })
     .index('by_user', ['userId'])
     .index('by_user_and_status', ['userId', 'status'])
+    .index('by_assigned_user', ['assignedToUserId'])
+    .index('by_assigned_user_and_status', ['assignedToUserId', 'status'])
     .index('by_status', ['status'])
     .index('by_created_at', ['createdAt'])
     .searchIndex('search_title', {

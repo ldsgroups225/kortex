@@ -180,7 +180,28 @@
     "list": "Liste",
     "menu": "Menu",
     "noTodosInColumn": "Aucune tâche",
-    "noTasks": "Aucune tâche {{status}}"
+    "noTasks": "Aucune tâche {{status}}",
+    "tagsPlaceholder": "Ajouter des tags...",
+    "assignTo": "Assigner à",
+    "assignToPlaceholder": "Assigner à quelqu'un...",
+    "unassigned": "Non assigné",
+    "assignedTo": "Assigné à",
+    "createdBy": "Créé par",
+    "you": "Vous",
+    "assignToSomeone": "Assigner à quelqu'un",
+    "collaborative": {
+      "assignedTodo": "Tâche assignée",
+      "yourTodo": "Votre tâche",
+      "canOnlyComplete": "Vous ne pouvez que marquer comme terminé",
+      "canOnlyCompleteDesc": "Cette tâche vous a été assignée. Seul le créateur peut modifier les détails.",
+      "assignedByYou": "Assigné par vous à {{name}}",
+      "assignedToYou": "Assigné à vous par {{name}}",
+      "noUsersAvailable": "Aucun utilisateur disponible",
+      "assignmentChanged": "Assignation mise à jour",
+      "assignmentChangedDesc": "L'assignation de la tâche a été mise à jour.",
+      "permissionDenied": "Permission refusée",
+      "permissionDeniedDesc": "Vous n'avez pas la permission d'effectuer cette action."
+    }
   },
   "settings": {
     "title": "Paramètres",

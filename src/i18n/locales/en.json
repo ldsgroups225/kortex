@@ -180,7 +180,28 @@
     "list": "List",
     "menu": "Menu",
     "noTodosInColumn": "No todos",
-    "noTasks": "No {{status}} tasks"
+    "noTasks": "No {{status}} tasks",
+    "tagsPlaceholder": "Add tags...",
+    "assignTo": "Assign to",
+    "assignToPlaceholder": "Assign to someone...",
+    "unassigned": "Unassigned",
+    "assignedTo": "Assigned to",
+    "createdBy": "Created by",
+    "you": "You",
+    "assignToSomeone": "Assign to someone",
+    "collaborative": {
+      "assignedTodo": "Assigned todo",
+      "yourTodo": "Your todo",
+      "canOnlyComplete": "You can only mark this as complete",
+      "canOnlyCompleteDesc": "This todo was assigned to you. Only the creator can edit details.",
+      "assignedByYou": "Assigned by you to {{name}}",
+      "assignedToYou": "Assigned to you by {{name}}",
+      "noUsersAvailable": "No users available",
+      "assignmentChanged": "Assignment updated",
+      "assignmentChangedDesc": "Todo assignment has been updated.",
+      "permissionDenied": "Permission denied",
+      "permissionDeniedDesc": "You don't have permission to perform this action."
+    }
   },
   "settings": {
     "title": "Settings",

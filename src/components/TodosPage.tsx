@@ -20,6 +20,7 @@ import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
 import { SearchBar } from './SearchBar'
 import { TagInput } from './TagInput'
+import { UserSelector } from './UserSelector'
 
 type TodoStatus = 'todo' | 'in_progress' | 'done'
 
@@ -30,6 +31,17 @@ interface Todo {
   description?: string
   status: TodoStatus
   tags: string[]
+  assignedToUserId?: Id<'users'>
+  assignedToUser?: {
+    _id: Id<'users'>
+    name?: string
+    email?: string
+  }
+  createdByUser: {
+    _id: Id<'users'>
+    name?: string
+    email?: string
+  }
   dueDate?: number
   createdAt?: number
   updatedAt?: number
@@ -55,6 +67,10 @@ function TodoCard({
   setEditTags,
   editDueDate,
   setEditDueDate,
+  editAssignedTo,
+  setEditAssignedTo,
+  users,
+  currentUser,
   handleSaveEdit,
   setEditingTodo,
   toggleTodoStatus,
@@ -82,6 +98,10 @@ function TodoCard({
   setEditTags: (tags: string[]) => void
   editDueDate: string
   setEditDueDate: (date: string) => void
+  editAssignedTo?: Id<'users'>
+  setEditAssignedTo: (userId?: Id<'users'>) => void
+  users: any
+  currentUser: any
   handleSaveEdit: () => Promise<void>
   setEditingTodo: (id: Id<'todos'> | null) => void
   toggleTodoStatus: any
@@ -125,6 +145,13 @@ function TodoCard({
                 tags={editTags}
                 onChange={setEditTags}
                 placeholder={t('todos.tagsPlaceholder') || 'Add tags...'}
+              />
+              <UserSelector
+                users={users}
+                selectedUserId={editAssignedTo}
+                onUserSelect={setEditAssignedTo}
+                currentUserId={currentUser?._id}
+                placeholder={t('todos.assignToPlaceholder')}
               />
               <div className="flex gap-2">
                 <select
@@ -192,6 +219,14 @@ function TodoCard({
                     >
                       {todo.title}
                     </h3>
+                    {/* Assignment badge */}
+                    {todo.assignedToUser && (
+                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded-full">
+                        {todo.assignedToUser._id === currentUser?._id
+                          ? t('todos.collaborative.assignedToYou', { name: todo.createdByUser.name || todo.createdByUser.email || t('common.untitled') })
+                          : t('todos.collaborative.assignedByYou', { name: todo.assignedToUser.name || todo.assignedToUser.email || t('common.untitled') })}
+                      </span>
+                    )}
                     {todo.sending && (
                       <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
                         <div className="animate-spin rounded-full h-3 w-3 border border-blue-600 border-t-transparent"></div>
@@ -220,6 +255,25 @@ function TodoCard({
                       </span>
                     </div>
                   )}
+                  {/* Creator/Assignee info */}
+                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    <span>
+                      {t('todos.createdBy')}
+                      {' '}
+                      {todo.createdByUser._id === currentUser?._id
+                        ? t('todos.you')
+                        : (todo.createdByUser.name || todo.createdByUser.email || t('common.untitled'))}
+                    </span>
+                    {todo.assignedToUser && (
+                      <span>
+                        {t('todos.assignedTo')}
+                        {' '}
+                        {todo.assignedToUser._id === currentUser?._id
+                          ? t('todos.you')
+                          : (todo.assignedToUser.name || todo.assignedToUser.email || t('common.untitled'))}
+                      </span>
+                    )}
+                  </div>
                   {todo.tags && todo.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {todo.tags.map(tag => (
@@ -284,6 +338,10 @@ function TodoColumn({
   setEditTags,
   editDueDate,
   setEditDueDate,
+  editAssignedTo,
+  setEditAssignedTo,
+  users,
+  currentUser,
   handleSaveEdit,
   setEditingTodo,
   toggleTodoStatus,
@@ -313,6 +371,10 @@ function TodoColumn({
   setEditTags: (tags: string[]) => void
   editDueDate: string
   setEditDueDate: (date: string) => void
+  editAssignedTo?: Id<'users'>
+  setEditAssignedTo: (userId?: Id<'users'>) => void
+  users: any
+  currentUser: any
   handleSaveEdit: () => Promise<void>
   setEditingTodo: (id: Id<'todos'> | null) => void
   toggleTodoStatus: any
@@ -396,6 +458,10 @@ function TodoColumn({
             setEditTags={setEditTags}
             editDueDate={editDueDate}
             setEditDueDate={setEditDueDate}
+            editAssignedTo={editAssignedTo}
+            setEditAssignedTo={setEditAssignedTo}
+            users={users}
+            currentUser={currentUser}
             handleSaveEdit={handleSaveEdit}
             setEditingTodo={setEditingTodo}
             toggleTodoStatus={toggleTodoStatus}
@@ -429,6 +495,8 @@ interface TodosPageProps {
 export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps = {}) {
   const { t } = useTranslation()
   const todos = useQuery(api.todos.getTodos)
+  const users = useQuery(api.users.getUsers)
+  const currentUser = useQuery(api.users.getCurrentUser)
   const createTodo = useMutation(api.todos.createTodo)
   const updateTodo = useMutation(api.todos.updateTodo)
   const deleteTodo = useMutation(api.todos.deleteTodo)
@@ -525,11 +593,13 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
 
   const [newTodoTitle, setNewTodoTitle] = useState('')
   const [newTodoTags, setNewTodoTags] = useState<string[]>([])
+  const [newTodoAssignedTo, setNewTodoAssignedTo] = useState<Id<'users'> | undefined>()
   const [editingTodo, setEditingTodo] = useState<Id<'todos'> | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editStatus, setEditStatus] = useState<TodoStatus>('todo')
   const [editTags, setEditTags] = useState<string[]>([])
+  const [editAssignedTo, setEditAssignedTo] = useState<Id<'users'> | undefined>()
   const [editDueDate, setEditDueDate] = useState<string>('')
   const [draggedTodo, setDraggedTodo] = useState<Todo | null>(null)
   const [dragOverStatus, setDragOverStatus] = useState<TodoStatus | null>(null)
@@ -635,11 +705,13 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
         status: 'todo' as TodoStatus,
         tags: newTodoTags,
         userId: 'temp' as Id<'users'>,
+        assignedToUserId: newTodoAssignedTo,
       },
     })
 
     setNewTodoTitle('')
     setNewTodoTags([])
+    setNewTodoAssignedTo(undefined)
 
     startCreateTransition(async () => {
       try {
@@ -647,10 +719,16 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
           title,
           description: '',
           tags: newTodoTags,
+          assignedToUserId: newTodoAssignedTo,
         })
         toast.success(t('toasts.todoCreated'), {
           description: t('toasts.todoCreatedDesc'),
         })
+        if (newTodoAssignedTo) {
+          toast.success(t('todos.collaborative.assignmentChanged'), {
+            description: t('todos.collaborative.assignmentChangedDesc'),
+          })
+        }
       }
       catch (error) {
         console.error('Failed to create todo:', error)
@@ -670,6 +748,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     setEditStatus(todo.status)
     setEditTags(todo.tags || [])
     setEditDueDate(todo.dueDate ? new Date(todo.dueDate).toISOString().split('T')[0] : '')
+    setEditAssignedTo(todo.assignedToUserId)
   }
 
   const handleSaveEdit = async () => {
@@ -682,6 +761,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
       status: editStatus,
       tags: editTags,
       dueDate: editDueDate ? new Date(editDueDate).getTime() : undefined,
+      assignedToUserId: editAssignedTo,
     }
 
     // Optimistically update the todo
@@ -701,12 +781,24 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
         toast.success(t('toasts.todoUpdated'), {
           description: t('toasts.todoUpdatedDesc'),
         })
+        if (editAssignedTo) {
+          toast.success(t('todos.collaborative.assignmentChanged'), {
+            description: t('todos.collaborative.assignmentChangedDesc'),
+          })
+        }
       }
       catch (error) {
         console.error('Failed to update todo:', error)
-        toast.error(t('toasts.operationError'), {
-          description: t('toasts.operationErrorDesc'),
-        })
+        if (error.message && error.message.includes('permission')) {
+          toast.error(t('todos.collaborative.permissionDenied'), {
+            description: t('todos.collaborative.permissionDeniedDesc'),
+          })
+        }
+        else {
+          toast.error(t('toasts.operationError'), {
+            description: t('toasts.operationErrorDesc'),
+          })
+        }
       }
     })
   }
@@ -792,9 +884,16 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
       }
       catch (error) {
         console.error('Failed to update todo status:', error)
-        toast.error(t('toasts.operationError'), {
-          description: t('toasts.operationErrorDesc'),
-        })
+        if (error.message && error.message.includes('permission')) {
+          toast.error(t('todos.collaborative.permissionDenied'), {
+            description: t('todos.collaborative.permissionDeniedDesc'),
+          })
+        }
+        else {
+          toast.error(t('toasts.operationError'), {
+            description: t('toasts.operationErrorDesc'),
+          })
+        }
       }
     })
   }
@@ -988,29 +1087,39 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
             onSubmit={(e) => {
               void handleCreateTodo(e)
             }}
-            className="flex gap-2"
+            className="space-y-2"
           >
-            <input
-              type="text"
-              value={newTodoTitle}
-              onChange={e => setNewTodoTitle(e.target.value)}
-              placeholder={t('todos.addPlaceholder')}
-              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newTodoTitle}
+                onChange={e => setNewTodoTitle(e.target.value)}
+                placeholder={t('todos.addPlaceholder')}
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+              <button
+                type="submit"
+                disabled={isPendingCreate || !newTodoTitle.trim()}
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1 disabled:bg-blue-400 disabled:cursor-not-allowed"
+              >
+                {isPendingCreate
+                  ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    )
+                  : (
+                      <PlusIcon className="h-4 w-4" />
+                    )}
+                <span className="hidden sm:inline">{isPendingCreate ? (t('common.adding') || 'Adding...') : t('common.add')}</span>
+              </button>
+            </div>
+            <UserSelector
+              users={users}
+              selectedUserId={newTodoAssignedTo}
+              onUserSelect={setNewTodoAssignedTo}
+              currentUserId={currentUser?._id}
+              placeholder={t('todos.assignToPlaceholder')}
+              className="w-full"
             />
-            <button
-              type="submit"
-              disabled={isPendingCreate || !newTodoTitle.trim()}
-              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1 disabled:bg-blue-400 disabled:cursor-not-allowed"
-            >
-              {isPendingCreate
-                ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                  )
-                : (
-                    <PlusIcon className="h-4 w-4" />
-                  )}
-              <span className="hidden sm:inline">{isPendingCreate ? (t('common.adding') || 'Adding...') : t('common.add')}</span>
-            </button>
           </form>
         </div>
 
@@ -1020,32 +1129,44 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
             onSubmit={(e) => {
               void handleCreateTodo(e)
             }}
-            className="flex gap-2"
+            className="space-y-3"
           >
-            <input
-              ref={inputRef}
-              type="text"
-              value={newTodoTitle}
-              onChange={e => setNewTodoTitle(e.target.value)}
-              placeholder={t('todos.addPlaceholder')}
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              data-onboarding="add-todo-input"
-            />
-            <button
-              type="submit"
-              disabled={isPendingCreate || !newTodoTitle.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:bg-blue-400 disabled:cursor-not-allowed"
-              data-onboarding="add-todo-button"
-            >
-              {isPendingCreate
-                ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                  )
-                : (
-                    <PlusIcon className="h-4 w-4" />
-                  )}
-              {isPendingCreate ? t('common.adding') || 'Adding...' : t('common.add')}
-            </button>
+            <div className="flex gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={newTodoTitle}
+                onChange={e => setNewTodoTitle(e.target.value)}
+                placeholder={t('todos.addPlaceholder')}
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                data-onboarding="add-todo-input"
+              />
+              <button
+                type="submit"
+                disabled={isPendingCreate || !newTodoTitle.trim()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:bg-blue-400 disabled:cursor-not-allowed"
+                data-onboarding="add-todo-button"
+              >
+                {isPendingCreate
+                  ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    )
+                  : (
+                      <PlusIcon className="h-4 w-4" />
+                    )}
+                {isPendingCreate ? t('common.adding') || 'Adding...' : t('common.add')}
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <UserSelector
+                users={users}
+                selectedUserId={newTodoAssignedTo}
+                onUserSelect={setNewTodoAssignedTo}
+                currentUserId={currentUser?._id}
+                placeholder={t('todos.assignToPlaceholder')}
+                className="flex-1"
+              />
+            </div>
           </form>
         </div>
 
@@ -1100,6 +1221,10 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
                           formatDate={formatDate}
                           isOverdue={isOverdue}
                           t={t}
+                          editAssignedTo={editAssignedTo}
+                          setEditAssignedTo={setEditAssignedTo}
+                          users={users}
+                          currentUser={currentUser}
                         />
                       ))}
                       {statusTodos.length === 0 && (
@@ -1177,6 +1302,10 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               formatDate={formatDate}
               isOverdue={isOverdue}
               t={t}
+              editAssignedTo={editAssignedTo}
+              setEditAssignedTo={setEditAssignedTo}
+              users={users}
+              currentUser={currentUser}
             />
             <TodoColumn
               title={t('todos.statuses.done')}
@@ -1207,6 +1336,10 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               formatDate={formatDate}
               isOverdue={isOverdue}
               t={t}
+              editAssignedTo={editAssignedTo}
+              setEditAssignedTo={setEditAssignedTo}
+              users={users}
+              currentUser={currentUser}
             />
           </div>
         </div>
