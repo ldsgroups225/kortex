@@ -1,4 +1,5 @@
 import type { Id } from '../../convex/_generated/dataModel'
+import type { Todo, TodoStatus } from '../hooks/useOfflineTodos'
 import type { FilterConfig } from './FilterBar'
 import {
   Bars3Icon,
@@ -12,47 +13,18 @@ import {
   TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
-import { useMutation, useQuery } from 'convex/react'
-import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react'
+import { useQuery } from 'convex/react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
+import { useOfflineTodos } from '../hooks/useOfflineTodos'
 import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
 import { PomodoroTimer } from './PomodoroTimer'
 import { SearchBar } from './SearchBar'
 import { TagInput } from './TagInput'
 import { UserSelector } from './UserSelector'
-
-type TodoStatus = 'todo' | 'in_progress' | 'done'
-
-interface Todo {
-  _id: Id<'todos'>
-  userId: Id<'users'>
-  title: string
-  description?: string
-  status: TodoStatus
-  tags: string[]
-  assignedToUserId?: Id<'users'>
-  assignedToUser?: {
-    _id: Id<'users'>
-    name?: string
-    email?: string
-  }
-  createdByUser: {
-    _id: Id<'users'>
-    name?: string
-    email?: string
-  }
-  dueDate?: number
-  createdAt?: number
-  updatedAt?: number
-  // Optimistic UI fields
-  optimistic?: boolean
-  tempId?: string
-  sending?: boolean
-  deleting?: boolean
-}
 
 // Extracted TodoCard component
 function TodoCard({
@@ -75,7 +47,7 @@ function TodoCard({
   currentUser,
   handleSaveEdit,
   setEditingTodo,
-  toggleTodoStatus,
+  _toggleTodoStatus,
   handleEditTodo,
   handleDeleteTodo,
   handleDragStart,
@@ -206,7 +178,7 @@ function TodoCard({
                 <button
                   type="button"
                   onClick={() => {
-                    void toggleTodoStatus({ id: todo._id })
+                    void toggleOfflineTodoStatus(todo._id)
                   }}
                   className={`flex-shrink-0 w-5 h-5 rounded border-2 transition-all duration-200 ${todo.status === 'done'
                     ? 'bg-green-500 border-green-500 text-white'
@@ -513,102 +485,22 @@ interface TodosPageProps {
 
 export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps = {}) {
   const { t } = useTranslation()
-  const todos = useQuery(api.todos.getTodos)
+
+  // Use offline-first todos hook
+  const {
+    todos: offlineTodos,
+    createTodo: createOfflineTodo,
+    updateTodo: updateOfflineTodo,
+    deleteTodo: deleteOfflineTodo,
+    toggleTodoStatus: toggleOfflineTodoStatus,
+  } = useOfflineTodos()
+
+  // Still get users for UserSelector component
   const users = useQuery(api.users.getUsers)
   const currentUser = useQuery(api.users.getCurrentUser)
-  const createTodo = useMutation(api.todos.createTodo)
-  const updateTodo = useMutation(api.todos.updateTodo)
-  const deleteTodo = useMutation(api.todos.deleteTodo)
-  const toggleTodoStatus = useMutation(api.todos.toggleTodoStatus)
 
-  // Optimistic state management
-  const [optimisticTodos, setOptimisticTodos] = useOptimistic(
-    todos || { todo: [], inProgress: [], done: [] },
-    (state, action: {
-      type: 'add' | 'update' | 'delete' | 'toggle'
-      payload: any
-    }) => {
-      switch (action.type) {
-        case 'add': {
-          const newTodo = {
-            ...action.payload,
-            optimistic: true,
-            sending: true,
-            _creationTime: Date.now(),
-          }
-          return {
-            ...state,
-            todo: [newTodo, ...state.todo],
-          }
-        }
-        case 'update': {
-          const { id, updates } = action.payload
-          const updateTodoInList = (todoList: Todo[]) =>
-            todoList.map(todo =>
-              todo._id === id || todo.tempId === id
-                ? { ...todo, ...updates, sending: true }
-                : todo,
-            )
-
-          return {
-            todo: updateTodoInList(state.todo),
-            inProgress: updateTodoInList(state.inProgress),
-            done: updateTodoInList(state.done),
-          }
-        }
-        case 'toggle': {
-          const { id, newStatus } = action.payload
-          const findAndMoveTodo = () => {
-            let todoToMove: Todo | null = null
-            const newState = { ...state }
-
-            // Find the todo in all lists
-            Object.keys(newState).forEach((status) => {
-              const list = newState[status as keyof typeof newState]
-              const index = list.findIndex(todo => todo._id === id || todo.tempId === id)
-              if (index !== -1) {
-                todoToMove = { ...list[index], status: newStatus, sending: true }
-                list.splice(index, 1)
-              }
-            })
-
-            // Add to new status list
-            if (todoToMove) {
-              const targetList = newStatus === 'in_progress' ? 'inProgress' : newStatus
-              newState[targetList as keyof typeof newState].unshift(todoToMove)
-            }
-
-            return newState
-          }
-
-          return findAndMoveTodo()
-        }
-        case 'delete': {
-          const { id } = action.payload
-          const filterTodo = (todoList: Todo[]) =>
-            todoList.map(todo =>
-              todo._id === id || todo.tempId === id
-                ? { ...todo, deleting: true, sending: true }
-                : todo,
-            )
-
-          return {
-            todo: filterTodo(state.todo),
-            inProgress: filterTodo(state.inProgress),
-            done: filterTodo(state.done),
-          }
-        }
-        default:
-          return state
-      }
-    },
-  )
-
-  // Transition states for smooth UI updates
-  const [isPendingCreate, startCreateTransition] = useTransition()
-  const [_isPendingUpdate, startUpdateTransition] = useTransition()
-  const [_isPendingDelete, startDeleteTransition] = useTransition()
-  const [_isPendingToggle, startToggleTransition] = useTransition()
+  // Local state for UI interactions
+  const [isCreating, setIsCreating] = useState(false)
 
   const [newTodoTitle, setNewTodoTitle] = useState('')
   const [newTodoTags, setNewTodoTags] = useState<string[]>([])
@@ -639,9 +531,9 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     }
   }, [])
 
-  // Filter and search logic with optimistic state
+  // Filter and search logic with offline todos
   const getFilteredTodos = () => {
-    const todosToFilter = optimisticTodos
+    const todosToFilter = offlineTodos
 
     let filteredTodos = todosToFilter
 
@@ -709,57 +601,30 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
 
   const handleCreateTodo = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newTodoTitle.trim() || isPendingCreate)
+    if (!newTodoTitle.trim() || isCreating)
       return
 
     const title = newTodoTitle.trim()
-    const tempId = `temp-${Date.now()}-${Math.random()}`
+    setIsCreating(true)
 
-    // Optimistically add the todo
-    setOptimisticTodos({
-      type: 'add',
-      payload: {
-        _id: tempId,
-        tempId,
+    try {
+      await createOfflineTodo({
         title,
         description: '',
-        status: 'todo' as TodoStatus,
         tags: newTodoTags,
-        userId: 'temp' as Id<'users'>,
         assignedToUserId: newTodoAssignedTo,
-      },
-    })
+      })
 
-    setNewTodoTitle('')
-    setNewTodoTags([])
-    setNewTodoAssignedTo(undefined)
-
-    startCreateTransition(async () => {
-      try {
-        await createTodo({
-          title,
-          description: '',
-          tags: newTodoTags,
-          assignedToUserId: newTodoAssignedTo,
-        })
-        toast.success(t('toasts.todoCreated'), {
-          description: t('toasts.todoCreatedDesc'),
-        })
-        if (newTodoAssignedTo) {
-          toast.success(t('todos.collaborative.assignmentChanged'), {
-            description: t('todos.collaborative.assignmentChangedDesc'),
-          })
-        }
-      }
-      catch (error) {
-        console.error('Failed to create todo:', error)
-        toast.error(t('toasts.operationError'), {
-          description: t('toasts.operationErrorDesc'),
-        })
-        // The optimistic update will be automatically reverted by useOptimistic
-        // when the component re-renders with the actual data
-      }
-    })
+      setNewTodoTitle('')
+      setNewTodoTags([])
+      setNewTodoAssignedTo(undefined)
+    }
+    catch (error) {
+      console.error('Failed to create todo:', error)
+    }
+    finally {
+      setIsCreating(false)
+    }
   }
 
   const handleEditTodo = (todo: Todo) => {
@@ -785,75 +650,23 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
       assignedToUserId: editAssignedTo,
     }
 
-    // Optimistically update the todo
-    setOptimisticTodos({
-      type: 'update',
-      payload: { id: editingTodo, updates },
-    })
-
     setEditingTodo(null)
 
-    startUpdateTransition(async () => {
-      try {
-        await updateTodo({
-          id: editingTodo,
-          ...updates,
-        })
-        toast.success(t('toasts.todoUpdated'), {
-          description: t('toasts.todoUpdatedDesc'),
-        })
-        if (editAssignedTo) {
-          toast.success(t('todos.collaborative.assignmentChanged'), {
-            description: t('todos.collaborative.assignmentChangedDesc'),
-          })
-        }
-      }
-      catch (error) {
-        console.error('Failed to update todo:', error)
-        if (error.message && error.message.includes('permission')) {
-          toast.error(t('todos.collaborative.permissionDenied'), {
-            description: t('todos.collaborative.permissionDeniedDesc'),
-          })
-        }
-        else {
-          toast.error(t('toasts.operationError'), {
-            description: t('toasts.operationErrorDesc'),
-          })
-        }
-      }
-    })
+    try {
+      await updateOfflineTodo(editingTodo as string, updates)
+    }
+    catch (error) {
+      console.error('Failed to update todo:', error)
+    }
   }
 
   const handleDeleteTodo = async (id: Id<'todos'> | string) => {
-    // Optimistically mark as deleting
-    setOptimisticTodos({
-      type: 'delete',
-      payload: { id },
-    })
-
-    startDeleteTransition(async () => {
-      try {
-        // Only call API for real todos, not temporary ones
-        if (typeof id === 'string' && id.startsWith('temp-')) {
-          // For temporary todos, just show success message
-          toast.error(t('toasts.todoDeleted'), {
-            description: t('toasts.todoDeletedDesc'),
-          })
-          return
-        }
-
-        await deleteTodo({ id: id as Id<'todos'> })
-        toast.error(t('toasts.todoDeleted'), {
-          description: t('toasts.todoDeletedDesc'),
-        })
-      }
-      catch (error) {
-        console.error('Failed to delete todo:', error)
-        toast.error(t('toasts.operationError'), {
-          description: t('toasts.operationErrorDesc'),
-        })
-      }
-    })
+    try {
+      await deleteOfflineTodo(id as string)
+    }
+    catch (error) {
+      console.error('Failed to delete todo:', error)
+    }
   }
 
   const handleDragStart = (e: React.DragEvent, todo: Todo) => {
@@ -872,13 +685,6 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
       return
 
     const todoId = draggedTodo._id || draggedTodo.tempId
-
-    // Optimistically move the todo
-    setOptimisticTodos({
-      type: 'toggle',
-      payload: { id: todoId, newStatus: status },
-    })
-
     const statusLabels = {
       todo: t('todos.statuses.todo'),
       in_progress: t('todos.statuses.in_progress'),
@@ -888,35 +694,18 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     setDraggedTodo(null)
     setDragOverStatus(null)
 
-    startToggleTransition(async () => {
-      try {
-        // Only call API for real todos, not temporary ones
-        if (typeof todoId === 'string' && todoId.startsWith('temp-')) {
-          toast.success(t('toasts.todoMoved'), {
-            description: t('toasts.todoMovedDesc', { status: statusLabels[status] }),
-          })
-          return
-        }
-
-        await updateTodo({ id: todoId as Id<'todos'>, status })
-        toast.success(t('toasts.todoMoved'), {
-          description: t('toasts.todoMovedDesc', { status: statusLabels[status] }),
-        })
-      }
-      catch (error) {
-        console.error('Failed to update todo status:', error)
-        if (error.message && error.message.includes('permission')) {
-          toast.error(t('todos.collaborative.permissionDenied'), {
-            description: t('todos.collaborative.permissionDeniedDesc'),
-          })
-        }
-        else {
-          toast.error(t('toasts.operationError'), {
-            description: t('toasts.operationErrorDesc'),
-          })
-        }
-      }
-    })
+    try {
+      await updateOfflineTodo(todoId as string, { status })
+      toast.success(t('toasts.todoMoved'), {
+        description: t('toasts.todoMovedDesc', { status: statusLabels[status] }),
+      })
+    }
+    catch (error) {
+      console.error('Failed to update todo status:', error)
+      toast.error(t('toasts.operationError'), {
+        description: t('toasts.operationErrorDesc'),
+      })
+    }
   }
 
   const handleDragEnd = () => {
@@ -963,8 +752,8 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     setActivePomodoroTodo(null)
   }
 
-  // Show loading only on initial load, not for optimistic updates
-  if (!todos && optimisticTodos.todo.length === 0 && optimisticTodos.inProgress.length === 0 && optimisticTodos.done.length === 0) {
+  // Show loading only on initial load
+  if (!offlineTodos || (offlineTodos.todo.length === 0 && offlineTodos.inProgress.length === 0 && offlineTodos.done.length === 0)) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
@@ -1146,17 +935,17 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               />
               <button
                 type="submit"
-                disabled={isPendingCreate || !newTodoTitle.trim()}
+                disabled={isCreating || !newTodoTitle.trim()}
                 className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1 disabled:bg-blue-400 disabled:cursor-not-allowed"
               >
-                {isPendingCreate
+                {isCreating
                   ? (
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                     )
                   : (
                       <PlusIcon className="h-4 w-4" />
                     )}
-                <span className="hidden sm:inline">{isPendingCreate ? (t('common.adding') || 'Adding...') : t('common.add')}</span>
+                <span className="hidden sm:inline">{isCreating ? (t('common.adding') || 'Adding...') : t('common.add')}</span>
               </button>
             </div>
             <UserSelector
@@ -1190,18 +979,18 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               />
               <button
                 type="submit"
-                disabled={isPendingCreate || !newTodoTitle.trim()}
+                disabled={isCreating || !newTodoTitle.trim()}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:bg-blue-400 disabled:cursor-not-allowed"
                 data-onboarding="add-todo-button"
               >
-                {isPendingCreate
+                {isCreating
                   ? (
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                     )
                   : (
                       <PlusIcon className="h-4 w-4" />
                     )}
-                {isPendingCreate ? t('common.adding') || 'Adding...' : t('common.add')}
+                {isCreating ? t('common.adding') || 'Adding...' : t('common.add')}
               </button>
             </div>
             <div className="flex gap-2">
@@ -1258,7 +1047,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
                           setEditDueDate={setEditDueDate}
                           handleSaveEdit={handleSaveEdit}
                           setEditingTodo={setEditingTodo}
-                          toggleTodoStatus={toggleTodoStatus}
+                          toggleTodoStatus={toggleOfflineTodoStatus}
                           handleEditTodo={handleEditTodo}
                           handleDeleteTodo={handleDeleteTodo}
                           handleDragStart={handleDragStart}
@@ -1311,7 +1100,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               setEditDueDate={setEditDueDate}
               handleSaveEdit={handleSaveEdit}
               setEditingTodo={setEditingTodo}
-              toggleTodoStatus={toggleTodoStatus}
+              toggleTodoStatus={toggleOfflineTodoStatus}
               handleEditTodo={handleEditTodo}
               handleDeleteTodo={handleDeleteTodo}
               handleDragStart={handleDragStart}
@@ -1342,7 +1131,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               setEditDueDate={setEditDueDate}
               handleSaveEdit={handleSaveEdit}
               setEditingTodo={setEditingTodo}
-              toggleTodoStatus={toggleTodoStatus}
+              toggleTodoStatus={toggleOfflineTodoStatus}
               handleEditTodo={handleEditTodo}
               handleDeleteTodo={handleDeleteTodo}
               handleDragStart={handleDragStart}
@@ -1377,7 +1166,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               setEditDueDate={setEditDueDate}
               handleSaveEdit={handleSaveEdit}
               setEditingTodo={setEditingTodo}
-              toggleTodoStatus={toggleTodoStatus}
+              toggleTodoStatus={toggleOfflineTodoStatus}
               handleEditTodo={handleEditTodo}
               handleDeleteTodo={handleDeleteTodo}
               handleDragStart={handleDragStart}

@@ -1,4 +1,3 @@
-import type { Id } from '../../convex/_generated/dataModel'
 import type { FilterConfig } from './FilterBar'
 import {
   ArrowLeftIcon,
@@ -12,11 +11,11 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
-import { useMutation, useQuery } from 'convex/react'
+import { useQuery } from 'convex/react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
+import { useOfflineSnippets } from '../lib/useOfflineSnippets'
 import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
 import { SearchBar } from './SearchBar'
@@ -44,40 +43,41 @@ interface SnippetsPageProps {
 
 export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPageProps = {}) {
   const { t } = useTranslation()
-  const [selectedCategory, _setSelectedCategory] = useState<string>('')
-  const [searchQuery, setSearchQuery] = useState('')
   const [showEditor, setShowEditor] = useState(false)
-  const [editingSnippet, setEditingSnippet] = useState<Id<'snippets'> | null>(null)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<Id<'snippets'> | null>(null)
+  const [editingSnippetId, setEditingSnippetId] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
   const [snippetsSidebarOpen, setSnippetsSidebarOpen] = useState(false)
-  const [selectedSnippet, setSelectedSnippet] = useState<Id<'snippets'> | null>(null)
   const [activeFilters, setActiveFilters] = useState<Record<string, string | string[]>>({
     language: '',
     category: '',
     pinned: '',
   })
 
-  // Queries
-  const snippets = useQuery(api.snippets.getUserSnippets, {
-    category: selectedCategory || undefined,
-  })
-  const searchResults = useQuery(api.snippets.searchSnippets, {
-    query: searchQuery,
-    category: selectedCategory || undefined,
-  })
-  const userCategories = useQuery(api.snippets.getUserCategories) || []
-  const editingSnippetData = useQuery(api.snippets.getSnippet, editingSnippet ? { snippetId: editingSnippet } : 'skip',
-  )
+  // Get current user
+  const loggedInUser = useQuery(api.auth.loggedInUser)
 
-  // Mutations
-  const createSnippet = useMutation(api.snippets.createSnippet)
-  const updateSnippet = useMutation(api.snippets.updateSnippet)
-  const deleteSnippet = useMutation(api.snippets.deleteSnippet)
-  const togglePin = useMutation(api.snippets.togglePin)
+  // Use offline snippets hook
+  const {
+    snippets,
+    selectedSnippet,
+    createSnippet,
+    updateSnippet,
+    deleteSnippet,
+    togglePin,
+    selectSnippet,
+    searchSnippets,
+    getUserCategories,
+    getUserLanguages: _getUserLanguages,
+    syncStatus: _syncStatus,
+  } = useOfflineSnippets(loggedInUser?._id || null)
 
-  // Filter and search logic
+  // Get categories from offline hook
+  const userCategories = getUserCategories()
+  const allCategories = [...new Set([...DEFAULT_CATEGORIES, ...userCategories])].sort()
+
+  // Filter logic - snippets already includes search results
   const getFilteredSnippets = () => {
-    let filteredSnippets = searchQuery.trim() ? searchResults : snippets
+    let filteredSnippets = snippets
 
     if (!filteredSnippets)
       return []
@@ -102,7 +102,6 @@ export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPage
   }
 
   const displayedSnippets = getFilteredSnippets()
-  const allCategories = [...new Set([...DEFAULT_CATEGORIES, ...userCategories])].sort()
 
   // Filter configurations
   const filterConfigs: FilterConfig[] = [
@@ -146,7 +145,7 @@ export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPage
       category: '',
       pinned: '',
     })
-    setSearchQuery('')
+    searchSnippets('')
   }
 
   const getLanguageStyle = (language?: string) => {
@@ -154,45 +153,45 @@ export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPage
     return lang ? lang.color : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
   }
 
-  const handleCreateSnippet = () => {
-    setEditingSnippet(null)
-    setShowEditor(true)
-  }
-
-  const handleEditSnippet = (snippetId: Id<'snippets'>) => {
-    setEditingSnippet(snippetId)
-    setShowEditor(true)
-  }
-
-  const handleDeleteSnippet = async (snippetId: Id<'snippets'>) => {
+  const handleCreateSnippet = async () => {
     try {
-      await deleteSnippet({ snippetId })
-      setShowDeleteConfirm(null)
-      toast.error(t('toasts.snippetDeleted'), {
-        description: t('toasts.snippetDeletedDesc'),
+      const snippetId = await createSnippet({
+        title: 'Untitled Snippet',
+        content: '',
+        language: 'javascript',
+        category: 'General',
       })
+      selectSnippet(snippetId)
+      setSnippetsSidebarOpen(false)
+    }
+    catch (error) {
+      console.error('Failed to create snippet:', error)
+    }
+  }
+
+  const handleEditSnippet = (snippetId: string) => {
+    setEditingSnippetId(snippetId)
+    setShowEditor(true)
+  }
+
+  const handleDeleteSnippet = async (snippetId: string) => {
+    try {
+      await deleteSnippet(snippetId)
+      setShowDeleteConfirm(null)
+      // Toast is handled by the offline hook
     }
     catch (error) {
       console.error('Failed to delete snippet:', error)
-      toast.error(t('toasts.operationError'), {
-        description: t('toasts.operationErrorDesc'),
-      })
     }
   }
 
-  const handleTogglePin = async (snippetId: Id<'snippets'>) => {
+  const handleTogglePin = async (snippetId: string) => {
     try {
-      await togglePin({ snippetId })
-      const snippet = snippets?.find(s => s._id === snippetId)
-      toast.success(snippet?.pinned ? t('toasts.snippetUnpinned') : t('toasts.snippetPinned'), {
-        description: snippet?.pinned ? t('toasts.snippetUnpinnedDesc') : t('toasts.snippetPinnedDesc'),
-      })
+      await togglePin(snippetId)
+      // Toast is handled by the offline hook
     }
     catch (error) {
       console.error('Failed to toggle pin:', error)
-      toast.error(t('toasts.operationError'), {
-        description: t('toasts.operationErrorDesc'),
-      })
     }
   }
 
@@ -206,12 +205,12 @@ export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPage
   }
 
   // Mobile-responsive handlers
-  const handleSnippetSelect = (snippetId: Id<'snippets'>) => {
-    setSelectedSnippet(snippetId)
+  const handleSnippetSelect = (snippetId: string) => {
+    selectSnippet(snippetId)
   }
 
   const handleBackToList = () => {
-    setSelectedSnippet(null)
+    selectSnippet(null)
   }
 
   const isMobileView = selectedSnippet !== null || showEditor
@@ -272,8 +271,8 @@ export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPage
           {/* Search and Filters */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-4">
             <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
+              value=""
+              onChange={searchSnippets}
               placeholder={t('snippets.searchSnippets')}
               className="w-full"
             />
@@ -294,22 +293,18 @@ export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPage
                   <div className="p-6 text-center">
                     <div className="text-4xl mb-4">📦</div>
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                      {searchQuery ? 'No snippets found' : 'No snippets yet'}
+                      'No snippets yet'
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      {searchQuery
-                        ? 'Try adjusting your search terms or filters'
-                        : 'Save your first code snippet, prompt, or template to get started'}
+                      'Save your first code snippet, prompt, or template to get started'
                     </p>
-                    {!searchQuery && (
-                      <button
-                        type="button"
-                        onClick={handleCreateSnippet}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
-                      >
-                        Create First Snippet
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={handleCreateSnippet}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
+                    >
+                      Create First Snippet
+                    </button>
                   </div>
                 )
               : (
@@ -348,7 +343,7 @@ export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPage
                             </p>
                             <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mt-2">
                               <ClockIcon className="h-3 w-3" />
-                              {formatDate(snippet._creationTime)}
+                              {formatDate(snippet.updatedAt)}
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
@@ -412,37 +407,30 @@ export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPage
               ? (
                   <div className="h-full">
                     <SnippetEditor
-                      snippet={editingSnippetData}
+                      snippet={editingSnippetId ? snippets.find(s => s._id === editingSnippetId) : null}
                       categories={allCategories}
                       onSave={async (data) => {
                         try {
-                          if (editingSnippet) {
-                            await updateSnippet({ snippetId: editingSnippet, ...data })
-                            toast.success(t('toasts.snippetUpdated'), {
-                              description: t('toasts.snippetUpdatedDesc'),
-                            })
+                          if (editingSnippetId) {
+                            await updateSnippet(editingSnippetId, data)
+                            // Toast is handled by the offline hook
                           }
                           else {
                             await createSnippet(data)
-                            toast.success(t('toasts.snippetCreated'), {
-                              description: t('toasts.snippetCreatedDesc'),
-                            })
+                            // Toast is handled by the offline hook
                           }
                           setShowEditor(false)
-                          setEditingSnippet(null)
-                          setSelectedSnippet(null)
+                          setEditingSnippetId(null)
+                          selectSnippet(null)
                         }
                         catch (error) {
                           console.error('Failed to save snippet:', error)
-                          toast.error(t('toasts.operationError'), {
-                            description: t('toasts.operationErrorDesc'),
-                          })
                         }
                       }}
                       onCancel={() => {
                         setShowEditor(false)
-                        setEditingSnippet(null)
-                        setSelectedSnippet(null)
+                        setEditingSnippetId(null)
+                        selectSnippet(null)
                       }}
                     />
                   </div>
@@ -471,7 +459,7 @@ export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPage
                                 </span>
                                 <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                   <ClockIcon className="h-4 w-4" />
-                                  {formatDate(selectedSnippetData._creationTime)}
+                                  {formatDate(selectedSnippetData.updatedAt)}
                                 </span>
                               </div>
                             </div>
@@ -580,22 +568,18 @@ export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPage
                     <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
                       <div className="text-6xl mb-4">📦</div>
                       <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
-                        {searchQuery ? 'No snippets found' : 'No snippets yet'}
+                        No snippets yet
                       </h3>
                       <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-                        {searchQuery
-                          ? 'Try adjusting your search terms or filters'
-                          : 'Save your first code snippet, prompt, or template to get started'}
+                        Save your first code snippet, prompt, or template to get started
                       </p>
-                      {!searchQuery && (
-                        <button
-                          type="button"
-                          onClick={handleCreateSnippet}
-                          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                        >
-                          Create First Snippet
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={handleCreateSnippet}
+                        className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                      >
+                        Create First Snippet
+                      </button>
                     </div>
                   )
                 : (
@@ -646,7 +630,7 @@ export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPage
                           <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750 flex items-center justify-between">
                             <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                               <ClockIcon className="h-3 w-3" />
-                              {formatDate(snippet._creationTime)}
+                              {formatDate(snippet.updatedAt)}
                             </div>
                             <div className="flex items-center gap-1">
                               <CopyButton
@@ -701,35 +685,28 @@ export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPage
       {showEditor && (
         <div className="hidden lg:block">
           <SnippetEditor
-            snippet={editingSnippetData}
+            snippet={editingSnippetId ? snippets.find(s => s._id === editingSnippetId) : null}
             categories={allCategories}
             onSave={async (data) => {
               try {
-                if (editingSnippet) {
-                  await updateSnippet({ snippetId: editingSnippet, ...data })
-                  toast.success(t('toasts.snippetUpdated'), {
-                    description: t('toasts.snippetUpdatedDesc'),
-                  })
+                if (editingSnippetId) {
+                  await updateSnippet(editingSnippetId, data)
+                  // Toast is handled by the offline hook
                 }
                 else {
                   await createSnippet(data)
-                  toast.success(t('toasts.snippetCreated'), {
-                    description: t('toasts.snippetCreatedDesc'),
-                  })
+                  // Toast is handled by the offline hook
                 }
                 setShowEditor(false)
-                setEditingSnippet(null)
+                setEditingSnippetId(null)
               }
               catch (error) {
                 console.error('Failed to save snippet:', error)
-                toast.error(t('toasts.operationError'), {
-                  description: t('toasts.operationErrorDesc'),
-                })
               }
             }}
             onCancel={() => {
               setShowEditor(false)
-              setEditingSnippet(null)
+              setEditingSnippetId(null)
             }}
           />
         </div>
@@ -757,7 +734,7 @@ export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPage
                 type="button"
                 onClick={() => {
                   void handleDeleteSnippet(showDeleteConfirm)
-                  setSelectedSnippet(null)
+                  selectSnippet(null)
                 }}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >

@@ -391,5 +391,23 @@
     "next": "Next",
     "skip": "Skip",
     "finish": "Finish"
+  },
+  "sync": {
+    "online": "Online",
+    "offline": "Offline",
+    "syncing": "Syncing",
+    "error": "Sync Error",
+    "connected": "Connected and synced",
+    "workingOffline": "Working offline",
+    "lastSyncAt": "Last synced at {{time}}",
+    "changesWaiting": "{{count}} changes waiting to sync",
+    "syncingChanges": "Syncing {{count}} changes",
+    "syncError": "Sync failed, will retry automatically",
+    "pending": "pending",
+    "retry": "Retry",
+    "offlineMode": "Offline Mode",
+    "onlineMode": "Online Mode",
+    "syncStatus": "Sync Status",
+    "forceSyncAll": "Force Sync All"
   }
 }

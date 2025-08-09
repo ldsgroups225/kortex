@@ -15,10 +15,12 @@ import type {
 } from "convex/server";
 import type * as admin from "../admin.js";
 import type * as auth from "../auth.js";
+import type * as automergeSync from "../automergeSync.js";
 import type * as http from "../http.js";
 import type * as notes from "../notes.js";
 import type * as router from "../router.js";
 import type * as snippets from "../snippets.js";
+import type * as sync from "../sync.js";
 import type * as todos from "../todos.js";
 import type * as userPreferences from "../userPreferences.js";
 import type * as users from "../users.js";
@@ -34,10 +36,12 @@ import type * as users from "../users.js";
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   auth: typeof auth;
+  automergeSync: typeof automergeSync;
   http: typeof http;
   notes: typeof notes;
   router: typeof router;
   snippets: typeof snippets;
+  sync: typeof sync;
   todos: typeof todos;
   userPreferences: typeof userPreferences;
   users: typeof users;

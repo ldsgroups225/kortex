@@ -25,6 +25,54 @@ const applicationTables = {
       filterFields: ['userId'],
     }),
 
+  // Automerge document storage for offline-first sync
+  automergeDocuments: defineTable({
+    userId: v.id('users'),
+    documentId: v.string(), // unique document identifier
+    documentType: v.union(
+      v.literal('note'),
+      v.literal('snippet'),
+      v.literal('todo'),
+      v.literal('workspace'),
+    ),
+    changes: v.bytes(), // Automerge binary changes
+    heads: v.array(v.string()), // Automerge heads for conflict resolution
+    lastSync: v.number(),
+    metadata: v.optional(v.object({
+      title: v.optional(v.string()),
+      tags: v.optional(v.array(v.string())),
+      status: v.optional(v.string()),
+    })),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_and_type', ['userId', 'documentType'])
+    .index('by_document_id', ['documentId'])
+    .index('by_last_sync', ['lastSync']),
+
+  // Sync status tracking
+  syncStatus: defineTable({
+    userId: v.id('users'),
+    lastFullSync: v.number(),
+    pendingSyncs: v.array(v.object({
+      documentId: v.string(),
+      documentType: v.string(),
+      operation: v.union(
+        v.literal('create'),
+        v.literal('update'),
+        v.literal('delete'),
+      ),
+      timestamp: v.number(),
+    })),
+    offlineChanges: v.number(), // count of changes made while offline
+    connectionState: v.union(
+      v.literal('online'),
+      v.literal('offline'),
+      v.literal('syncing'),
+      v.literal('error'),
+    ),
+  })
+    .index('by_user', ['userId']),
+
   snippets: defineTable({
     userId: v.id('users'),
     title: v.string(),

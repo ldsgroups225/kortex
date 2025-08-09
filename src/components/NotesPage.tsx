@@ -1,4 +1,3 @@
-import type { Id } from '../../convex/_generated/dataModel'
 import type { FilterConfig } from './FilterBar'
 import {
   ArrowLeftIcon,
@@ -10,11 +9,12 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
-import { useMutation, useQuery } from 'convex/react'
+import { useQuery } from 'convex/react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
+import { useOfflineNotes } from '../lib/useOfflineNotes'
 import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
 import { RichTextEditor } from './RichTextEditor'
@@ -29,30 +29,32 @@ interface NotesPageProps {
 
 export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps = {}) {
   const { t } = useTranslation()
-  const [selectedNoteId, setSelectedNoteId] = useState<Id<'notes'> | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
   const [isCreating, setIsCreating] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<Id<'notes'> | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
   const [notesSidebarOpen, setNotesSidebarOpen] = useState(false)
   const [activeFilters, setActiveFilters] = useState<Record<string, string | string[]>>({
     tags: [],
     pinned: '',
   })
 
-  // Queries
-  const notes = useQuery(api.notes.getUserNotes)
-  const searchResults = useQuery(api.notes.searchNotes, { query: searchQuery })
-  const selectedNote = useQuery(api.notes.getNote, selectedNoteId ? { noteId: selectedNoteId } : 'skip',
-  )
-  const userTags = useQuery(api.notes.getUserTags) || []
+  // Get current user
+  const loggedInUser = useQuery(api.auth.loggedInUser)
 
-  // Mutations
-  const createNote = useMutation(api.notes.createNote)
-  const updateNote = useMutation(api.notes.updateNote)
-  const deleteNote = useMutation(api.notes.deleteNote)
-  const togglePin = useMutation(api.notes.togglePin)
+  // Use offline notes hook
+  const {
+    notes,
+    selectedNote,
+    createNote,
+    updateNote,
+    deleteNote,
+    togglePin,
+    selectNote,
+    searchNotes,
+    getUserTags,
+    syncStatus: _syncStatus,
+  } = useOfflineNotes(loggedInUser?._id || null)
 
-  // Auto-save functionality
+  // Auto-save functionality - using offline notes directly
   const [pendingChanges, setPendingChanges] = useState<{
     title?: string
     content?: string
@@ -60,18 +62,13 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
   }>({})
 
   const saveChanges = useCallback(async () => {
-    if (!selectedNoteId || Object.keys(pendingChanges).length === 0)
+    if (!selectedNote || Object.keys(pendingChanges).length === 0)
       return
 
     try {
-      await updateNote({
-        noteId: selectedNoteId,
-        ...pendingChanges,
-      })
+      await updateNote(selectedNote._id, pendingChanges)
       setPendingChanges({})
-      toast.success(t('toasts.noteSaved'), {
-        description: t('toasts.noteSavedDesc'),
-      })
+      // Toast is handled by the offline hook
     }
     catch (error) {
       console.error('Failed to save changes:', error)
@@ -79,7 +76,7 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
         description: t('toasts.operationErrorDesc'),
       })
     }
-  }, [selectedNoteId, pendingChanges, updateNote, t])
+  }, [selectedNote, pendingChanges, updateNote, t])
 
   // Auto-save every 2 seconds
   useEffect(() => {
@@ -94,9 +91,12 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
     }
   }, [saveChanges])
 
+  // Get user tags
+  const userTags = getUserTags()
+
   // Filter and search logic
   const getFilteredNotes = () => {
-    let filteredNotes = searchQuery.trim() ? searchResults : notes
+    let filteredNotes = notes
 
     if (!filteredNotes)
       return []
@@ -151,7 +151,7 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
       tags: [],
       pinned: '',
     })
-    setSearchQuery('')
+    searchNotes('') // Use offline notes search
   }
 
   const handleTagClick = (tag: string) => {
@@ -172,12 +172,10 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
         content: '',
         tags: [],
       })
-      setSelectedNoteId(noteId)
+      selectNote(noteId)
       // Close notes sidebar on mobile after creating note
       setNotesSidebarOpen(false)
-      toast.success(t('toasts.noteCreated'), {
-        description: t('toasts.noteCreatedDesc'),
-      })
+      // Toast is handled by the offline hook
     }
     catch (error) {
       console.error('Failed to create note:', error)
@@ -190,22 +188,17 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
     }
   }
 
-  const handleNoteSelect = (noteId: Id<'notes'>) => {
-    setSelectedNoteId(noteId)
+  const handleNoteSelect = (noteId: string) => {
+    selectNote(noteId)
     // Close notes sidebar on mobile after selecting note
     setNotesSidebarOpen(false)
   }
 
-  const handleDeleteNote = async (noteId: Id<'notes'>) => {
+  const handleDeleteNote = async (noteId: string) => {
     try {
-      await deleteNote({ noteId })
-      if (selectedNoteId === noteId) {
-        setSelectedNoteId(null)
-      }
+      await deleteNote(noteId)
       setShowDeleteConfirm(null)
-      toast.error(t('toasts.noteDeleted'), {
-        description: t('toasts.noteDeletedDesc'),
-      })
+      // Toast is handled by the offline hook
     }
     catch (error) {
       console.error('Failed to delete note:', error)
@@ -215,13 +208,10 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
     }
   }
 
-  const handleTogglePin = async (noteId: Id<'notes'>) => {
+  const handleTogglePin = async (noteId: string) => {
     try {
-      await togglePin({ noteId })
-      const note = notes?.find(n => n._id === noteId)
-      toast.success(note?.pinned ? t('toasts.noteUnpinned') : t('toasts.notePinned'), {
-        description: note?.pinned ? t('toasts.noteUnpinnedDesc') : t('toasts.notePinnedDesc'),
-      })
+      await togglePin(noteId)
+      // Toast is handled by the offline hook
     }
     catch (error) {
       console.error('Failed to toggle pin:', error)
@@ -315,8 +305,8 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
           {/* Search and Filters */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-4">
             <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
+              value=""
+              onChange={searchNotes}
               placeholder={t('notes.searchNotes')}
             />
 
@@ -335,18 +325,16 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
                   <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                     <div className="text-4xl mb-2">📝</div>
                     <p className="text-sm">
-                      {searchQuery ? 'No notes found' : 'No notes yet'}
+                      No notes yet
                     </p>
-                    {!searchQuery && (
-                      <button
-                        type="button"
-                        onClick={() => void handleCreateNote()}
-                        disabled={isCreating}
-                        className="mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                      >
-                        Create your first note
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => void handleCreateNote()}
+                      disabled={isCreating}
+                      className="mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    >
+                      Create your first note
+                    </button>
                   </div>
                 )
               : (
@@ -356,7 +344,7 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
                         key={note._id}
                         onClick={() => handleNoteSelect(note._id)}
                         style={{ animationDelay: `${index * 50}ms` }}
-                        className={`p-3 sm:p-4 rounded-md cursor-pointer transition-colors group animate-slide-in-from-bottom ${selectedNoteId === note._id
+                        className={`p-3 sm:p-4 rounded-md cursor-pointer transition-colors group animate-slide-in-from-bottom ${selectedNote?._id === note._id
                           ? 'bg-blue-50 dark:bg-primary/10'
                           : 'hover:bg-slate-50 dark:hover:bg-slate-700/40'
                         }`}
@@ -402,8 +390,8 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
                         <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                           <div className="flex items-center gap-1">
                             <ClockIcon className="h-3 w-3" />
-                            <span className="hidden sm:inline">{formatDate(note._creationTime)}</span>
-                            <span className="sm:hidden">{new Date(note._creationTime).toLocaleDateString()}</span>
+                            <span className="hidden sm:inline">{formatDate(note.createdAt)}</span>
+                            <span className="sm:hidden">{new Date(note.createdAt).toLocaleDateString()}</span>
                           </div>
                           {note.tags.length > 0 && (
                             <div className="flex gap-1 flex-wrap">
@@ -442,7 +430,7 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
                 <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 lg:hidden">
                   <button
                     type="button"
-                    onClick={() => setSelectedNoteId(null)}
+                    onClick={() => selectNote(null)}
                     className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
                     <ArrowLeftIcon className="h-5 w-5" />
@@ -486,13 +474,13 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
                       <span className="whitespace-nowrap">
                         Created:
                         {' '}
-                        {formatDate(selectedNote._creationTime)}
+                        {formatDate(selectedNote.createdAt)}
                       </span>
                       <span className="hidden sm:inline">•</span>
                       <span className="whitespace-nowrap">
                         Updated:
                         {' '}
-                        {formatDate(selectedNote._creationTime)}
+                        {formatDate(selectedNote.updatedAt)}
                       </span>
                       {Object.keys(pendingChanges).length > 0 && (
                         <>

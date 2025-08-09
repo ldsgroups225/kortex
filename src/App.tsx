@@ -19,11 +19,13 @@ import { AdminDashboard } from './components/AdminDashboard'
 import { KeyboardShortcuts } from './components/KeyboardShortcuts'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
 import { NotesPage } from './components/NotesPage'
+import { OfflineStatus, OfflineStatusIndicator } from './components/OfflineStatus'
 import { OnboardingProvider } from './components/OnboardingProvider'
 import { OnboardingTooltip } from './components/OnboardingTooltip'
 import { SettingsPage } from './components/SettingsPage'
 import { SnippetsPage } from './components/SnippetsPage'
 import { TodosPage } from './components/TodosPage'
+import { useOfflineSync } from './lib/useOfflineSync'
 import { SignInForm } from './SignInForm'
 import { SignOutButton } from './SignOutButton'
 
@@ -152,6 +154,9 @@ function AuthenticatedApp({
 }) {
   const loggedInUser = useQuery(api.auth.loggedInUser)
   const { t } = useTranslation()
+
+  // Initialize offline sync
+  const offlineSync = useOfflineSync(loggedInUser?._id || null)
 
   const navigation = [
     { name: t('navigation.dashboard'), route: 'dashboard' as Route, icon: HomeIcon },
@@ -365,7 +370,14 @@ function AuthenticatedApp({
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-border dark:border-border-dark">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white" data-onboarding="app-logo">Kortex</h1>
+            <div className="flex items-center space-x-3">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white" data-onboarding="app-logo">Kortex</h1>
+              <OfflineStatusIndicator
+                connectionState={offlineSync.status.connectionState}
+                offlineChanges={offlineSync.status.offlineChanges}
+                className="flex-shrink-0"
+              />
+            </div>
             <button
               type="button"
               onClick={() => setSidebarOpen(false)}
@@ -398,6 +410,15 @@ function AuthenticatedApp({
               </button>
             ))}
           </nav>
+
+          {/* Offline Status Panel */}
+          <div className="border-t border-border dark:border-border-dark p-4">
+            <OfflineStatus
+              status={offlineSync.status}
+              onForceSync={offlineSync.forceSyncAll}
+              className="mb-4"
+            />
+          </div>
 
           {/* User info and controls */}
           <div className="border-t border-border dark:border-border-dark p-4 space-y-4">

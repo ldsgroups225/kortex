@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks-extra/no-direct-set-state-in-use-effect */
 import {
   ClockIcon,
   FlagIcon,
@@ -56,6 +57,7 @@ export function PomodoroTimer({ todoTitle, onClose, onComplete }: PomodoroTimerP
     currentSession: 1,
     totalSessions: DEFAULT_SETTINGS.sessionsUntilLongBreak,
   })
+  const [shouldCompletePhase, setShouldCompletePhase] = useState(false)
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -120,56 +122,64 @@ export function PomodoroTimer({ todoTitle, onClose, onComplete }: PomodoroTimerP
     })
   }
 
-  // Complete current phase and move to next
-  const completePhase = useCallback(() => {
-    const { phase, currentSession } = timer
+  // Handle phase completion logic
+  useEffect(() => {
+    if (shouldCompletePhase) {
+      setShouldCompletePhase(false)
 
-    playNotificationSound()
+      const { phase, currentSession } = timer
+      playNotificationSound()
 
-    if (phase === 'work') {
-      // Work session completed
-      if (currentSession >= settings.sessionsUntilLongBreak) {
-        // Time for long break
-        const longBreakDuration = getPhaseDuration('longBreak')
-        setTimer(prev => ({
-          ...prev,
-          phase: 'longBreak',
-          timeLeft: longBreakDuration,
-          isRunning: settings.autoStartBreaks,
-        }))
+      if (phase === 'work') {
+        // Work session completed
+        if (currentSession >= settings.sessionsUntilLongBreak) {
+          // Time for long break
+          const longBreakDuration = getPhaseDuration('longBreak')
+          setTimer(prev => ({
+            ...prev,
+            phase: 'longBreak' as TimerPhase,
+            timeLeft: longBreakDuration,
+            isRunning: settings.autoStartBreaks,
+          }))
+        }
+        else {
+          // Time for short break
+          const shortBreakDuration = getPhaseDuration('shortBreak')
+          setTimer(prev => ({
+            ...prev,
+            phase: 'shortBreak' as TimerPhase,
+            timeLeft: shortBreakDuration,
+            isRunning: settings.autoStartBreaks,
+          }))
+        }
       }
       else {
-        // Time for short break
-        const shortBreakDuration = getPhaseDuration('shortBreak')
+        // Break completed, back to work
+        const isLongBreak = phase === 'longBreak'
+        const nextSession = isLongBreak ? 1 : currentSession + 1
+
+        if (isLongBreak && currentSession >= settings.sessionsUntilLongBreak) {
+          // All sessions completed
+          onComplete()
+          return
+        }
+
+        const workDuration = getPhaseDuration('work')
         setTimer(prev => ({
           ...prev,
-          phase: 'shortBreak',
-          timeLeft: shortBreakDuration,
-          isRunning: settings.autoStartBreaks,
+          phase: 'work' as TimerPhase,
+          timeLeft: workDuration,
+          currentSession: nextSession,
+          isRunning: settings.autoStartSessions,
         }))
       }
     }
-    else {
-      // Break completed, back to work
-      const isLongBreak = phase === 'longBreak'
-      const nextSession = isLongBreak ? 1 : currentSession + 1
+  }, [shouldCompletePhase, settings.autoStartBreaks, settings.autoStartSessions, settings.sessionsUntilLongBreak, getPhaseDuration, playNotificationSound, timer, onComplete])
 
-      if (isLongBreak && currentSession >= settings.sessionsUntilLongBreak) {
-        // All sessions completed
-        onComplete()
-        return
-      }
-
-      const workDuration = getPhaseDuration('work')
-      setTimer(prev => ({
-        ...prev,
-        phase: 'work',
-        timeLeft: workDuration,
-        currentSession: nextSession,
-        isRunning: settings.autoStartSessions,
-      }))
-    }
-  }, [settings.autoStartBreaks, settings.autoStartSessions, settings.sessionsUntilLongBreak, getPhaseDuration, playNotificationSound, timer, onComplete])
+  // Complete current phase and move to next
+  const completePhase = useCallback(() => {
+    setShouldCompletePhase(true)
+  }, [])
 
   // Skip current phase
   const skipPhase = () => {
@@ -186,7 +196,7 @@ export function PomodoroTimer({ todoTitle, onClose, onComplete }: PomodoroTimerP
         }))
       }, 1000)
     }
-    else if (timer.timeLeft === 0) {
+    else if (timer.timeLeft === 0 && !shouldCompletePhase) {
       completePhase()
     }
     else {
@@ -202,7 +212,7 @@ export function PomodoroTimer({ todoTitle, onClose, onComplete }: PomodoroTimerP
         intervalRef.current = null
       }
     }
-  }, [timer.isRunning, timer.timeLeft, completePhase])
+  }, [timer.isRunning, timer.timeLeft, shouldCompletePhase, completePhase])
 
   // Cleanup on unmount
   useEffect(() => {
