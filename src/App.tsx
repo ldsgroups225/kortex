@@ -162,7 +162,7 @@ function AuthenticatedApp({
     ...(loggedInUser ? [{ name: 'Admin', route: 'admin' as Route, icon: ShieldCheckIcon }] : []),
   ]
 
-  // For notes page, we want full height layout
+  // For notes, snippets, and todos pages, we want full height layout with proper navigation
   if (currentRoute === 'notes') {
     return (
       <div className="flex h-screen">
@@ -174,7 +174,7 @@ function AuthenticatedApp({
           />
         )}
 
-        {/* Sidebar */}
+        {/* Main App Sidebar */}
         <div className={`
           fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -246,31 +246,101 @@ function AuthenticatedApp({
           </div>
         </div>
 
-        {/* Main content for notes */}
+        {/* Notes page content with its own internal layout */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Top bar for mobile */}
-          <header className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-16 flex items-center justify-between px-6">
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-            >
-              <Bars3Icon className="h-6 w-6" />
-            </button>
+          <NotesPage sidebarOpen={false} setSidebarOpen={() => setSidebarOpen(true)} />
+        </div>
+      </div>
+    )
+  }
 
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-              Notes
-            </h2>
+  // For todos page, we want full height layout with proper navigation
+  if (currentRoute === 'todos') {
+    return (
+      <div className="flex h-screen">
+        {/* Mobile sidebar overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
 
-            <div className="w-10" />
-            {' '}
-            {/* Spacer */}
-          </header>
+        {/* Main App Sidebar */}
+        <div className={`
+          fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+        >
+          <div className="flex flex-col h-full">
+            {/* Logo */}
+            <div className="flex items-center justify-between h-16 px-6 border-b border-border dark:border-border-dark">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Kortex</h1>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(false)}
+                className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
 
-          {/* Notes page content */}
-          <div className="flex-1 overflow-hidden">
-            <NotesPage />
+            {/* Navigation */}
+            <nav className="flex-1 px-4 py-6 space-y-2">
+              {navigation.map(item => (
+                <button
+                  type="button"
+                  key={item.name}
+                  onClick={() => {
+                    setCurrentRoute(item.route)
+                    setSidebarOpen(false)
+                  }}
+                  className={`
+                    w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors
+                    ${currentRoute === item.route
+                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }
+                  `}
+                >
+                  <item.icon className="h-5 w-5 mr-3" />
+                  {item.name}
+                </button>
+              ))}
+            </nav>
+
+            {/* User info and controls */}
+            <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-4">
+              <button
+                type="button"
+                onClick={toggleDarkMode}
+                className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                {darkMode
+                  ? (
+                      <SunIcon className="h-5 w-5 mr-3" />
+                    )
+                  : (
+                      <MoonIcon className="h-5 w-5 mr-3" />
+                    )}
+                {darkMode ? t('settings.lightMode') : t('settings.darkMode')}
+              </button>
+
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    {loggedInUser?.email || 'User'}
+                  </p>
+                </div>
+                <SignOutButton />
+              </div>
+            </div>
           </div>
+        </div>
+
+        {/* Todos page content with its own internal layout */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <TodosPage sidebarOpen={false} setSidebarOpen={() => setSidebarOpen(true)} />
         </div>
       </div>
     )

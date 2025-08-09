@@ -18,11 +18,13 @@ export function OnboardingTooltip() {
   const tooltipRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!isOnboardingActive || !currentStep) return
+    if (!isOnboardingActive || !currentStep)
+      return
 
     const updatePosition = () => {
       const targetElement = document.querySelector(currentStep.targetElement)
-      if (!targetElement || !tooltipRef.current) return
+      if (!targetElement || !tooltipRef.current)
+        return
 
       const targetRect = targetElement.getBoundingClientRect()
       const tooltipRect = tooltipRef.current.getBoundingClientRect()
@@ -58,9 +60,12 @@ export function OnboardingTooltip() {
       const viewportWidth = window.innerWidth
       const viewportHeight = window.innerHeight
 
-      if (left < 0) left = 10
-      if (left + tooltipRect.width > viewportWidth) left = viewportWidth - tooltipRect.width - 10
-      if (top < 0) top = 10
+      if (left < 0)
+        left = 10
+      if (left + tooltipRect.width > viewportWidth)
+        left = viewportWidth - tooltipRect.width - 10
+      if (top < 0)
+        top = 10
       if (top + tooltipRect.height > viewportHeight + window.scrollY) {
         top = viewportHeight + window.scrollY - tooltipRect.height - 10
       }
@@ -69,20 +74,22 @@ export function OnboardingTooltip() {
     }
 
     // Initial position update
-    setTimeout(updatePosition, 100)
+    const timeoutId = setTimeout(updatePosition, 100)
 
     // Update position on resize or scroll
     window.addEventListener('resize', updatePosition)
     window.addEventListener('scroll', updatePosition)
 
     return () => {
+      clearTimeout(timeoutId)
       window.removeEventListener('resize', updatePosition)
       window.removeEventListener('scroll', updatePosition)
     }
   }, [isOnboardingActive, currentStep])
 
   useEffect(() => {
-    if (!isOnboardingActive || !currentStep) return
+    if (!isOnboardingActive || !currentStep)
+      return
 
     // Highlight target element
     const targetElement = document.querySelector(currentStep.targetElement) as HTMLElement
@@ -107,7 +114,7 @@ export function OnboardingTooltip() {
 
   const getArrowClasses = () => {
     const baseClasses = 'absolute w-3 h-3 bg-white dark:bg-gray-800 border transform rotate-45'
-    
+
     switch (arrowPosition) {
       case 'top':
         return `${baseClasses} -top-1.5 left-1/2 -translate-x-1/2 border-b-0 border-r-0`
@@ -126,7 +133,7 @@ export function OnboardingTooltip() {
     <>
       {/* Overlay */}
       <div className="fixed inset-0 bg-black/20 z-50 pointer-events-none" />
-      
+
       {/* Tooltip */}
       <div
         ref={tooltipRef}
@@ -135,7 +142,7 @@ export function OnboardingTooltip() {
       >
         {/* Arrow */}
         <div className={getArrowClasses()} />
-        
+
         {/* Content */}
         <div className="p-4">
           {/* Header */}
@@ -144,23 +151,30 @@ export function OnboardingTooltip() {
               {currentStep.title}
             </h3>
             <button
+              type="button"
               onClick={skipOnboarding}
               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex-shrink-0"
             >
               <XMarkIcon className="h-4 w-4" />
             </button>
           </div>
-          
+
           {/* Content */}
           <p className="text-sm text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
             {currentStep.content}
           </p>
-          
+
           {/* Progress bar */}
           <div className="mb-4">
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                Step {currentStepIndex + 1} of {totalSteps}
+                Step
+                {' '}
+                {currentStepIndex + 1}
+                {' '}
+                of
+                {' '}
+                {totalSteps}
               </span>
             </div>
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
@@ -170,12 +184,13 @@ export function OnboardingTooltip() {
               />
             </div>
           </div>
-          
+
           {/* Actions */}
           <div className="flex items-center justify-between">
             <div>
               {currentStepIndex > 0 && (
                 <button
+                  type="button"
                   onClick={prevStep}
                   className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                 >
@@ -184,15 +199,17 @@ export function OnboardingTooltip() {
                 </button>
               )}
             </div>
-            
+
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={skipOnboarding}
                 className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
               >
                 Skip
               </button>
               <button
+                type="button"
                 onClick={nextStep}
                 className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-md transition-colors"
               >
@@ -203,14 +220,16 @@ export function OnboardingTooltip() {
           </div>
         </div>
       </div>
-      
+
       {/* Custom CSS for highlighting */}
-      <style jsx global>{`
+      <style>
+        {`
         .onboarding-highlight {
           box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5);
           border-radius: 8px;
         }
-      `}</style>
+      `}
+      </style>
     </>
   )
 }

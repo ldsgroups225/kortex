@@ -5,16 +5,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: {
+        'primary': {
           DEFAULT: '#4f80f0',
           hover: '#3b6ee0',
         },
-        secondary: 'rgb(100 116 139)',
-        background: 'rgb(255 255 255)',
+        'secondary': 'rgb(100 116 139)',
+        'background': 'rgb(255 255 255)',
         'background-dark': 'rgb(15 23 42)',
-        component: 'rgb(255 255 255)',
+        'component': 'rgb(255 255 255)',
         'component-dark': 'rgb(30 41 59)',
-        border: 'rgb(226 232 240)',
+        'border': 'rgb(226 232 240)',
         'border-dark': 'rgb(51 65 85)',
       },
       spacing: {

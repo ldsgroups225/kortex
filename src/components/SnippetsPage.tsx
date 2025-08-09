@@ -1,13 +1,15 @@
 import type { Id } from '../../convex/_generated/dataModel'
 import type { FilterConfig } from './FilterBar'
 import {
+  ArrowLeftIcon,
+  Bars3Icon,
   ClockIcon,
-  CodeBracketIcon,
   PencilIcon,
   PlusIcon,
   StarIcon,
   TagIcon,
   TrashIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
 import { useMutation, useQuery } from 'convex/react'
@@ -35,13 +37,20 @@ const LANGUAGES = [
 
 const DEFAULT_CATEGORIES = ['General', 'Code', 'Prompts', 'Templates', 'Commands']
 
-export function SnippetsPage() {
+interface SnippetsPageProps {
+  sidebarOpen?: boolean
+  setSidebarOpen?: () => void
+}
+
+export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPageProps = {}) {
   const { t } = useTranslation()
   const [selectedCategory, _setSelectedCategory] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [showEditor, setShowEditor] = useState(false)
   const [editingSnippet, setEditingSnippet] = useState<Id<'snippets'> | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Id<'snippets'> | null>(null)
+  const [snippetsSidebarOpen, setSnippetsSidebarOpen] = useState(false)
+  const [selectedSnippet, setSelectedSnippet] = useState<Id<'snippets'> | null>(null)
   const [activeFilters, setActiveFilters] = useState<Record<string, string | string[]>>({
     language: '',
     category: '',
@@ -196,199 +205,540 @@ export function SnippetsPage() {
     })
   }
 
+  // Mobile-responsive handlers
+  const handleSnippetSelect = (snippetId: Id<'snippets'>) => {
+    setSelectedSnippet(snippetId)
+  }
+
+  const handleBackToList = () => {
+    setSelectedSnippet(null)
+  }
+
+  const isMobileView = selectedSnippet !== null || showEditor
+  const selectedSnippetData = selectedSnippet
+    ? displayedSnippets?.find(s => s._id === selectedSnippet)
+    : null
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('snippets.title')}</h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            {displayedSnippets?.length || 0}
-            {' '}
-            {t('snippets.title').toLowerCase()}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={handleCreateSnippet}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-          data-onboarding="create-snippet-button"
-        >
-          <PlusIcon className="h-4 w-4" />
-          {t('snippets.addSnippet')}
-        </button>
-      </div>
+    <div className="h-full flex flex-col lg:flex-row">
+      {/* Mobile Sidebar Overlay */}
+      {snippetsSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setSnippetsSidebarOpen(false)}
+        />
+      )}
 
-      {/* Search */}
-      <SearchBar
-        value={searchQuery}
-        onChange={setSearchQuery}
-        placeholder={t('snippets.searchSnippets')}
-        className="w-full"
-      />
-
-      {/* Filters */}
-      <FilterBar
-        filters={filterConfigs}
-        activeFilters={activeFilters}
-        onFilterChange={handleFilterChange}
-        onClearAll={clearAllFilters}
-        className="w-full"
-      />
-
-      {/* Snippets Grid */}
-      {displayedSnippets?.length === 0
-        ? (
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-              <CodeBracketIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                {searchQuery ? 'No snippets found' : 'No snippets yet'}
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                {searchQuery ? 'Try adjusting your search terms' : 'Save your first code snippet or prompt'}
+      {/* Sidebar */}
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-50 w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:w-80 lg:flex-shrink-0
+          ${snippetsSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        <div className="h-full flex flex-col">
+          {/* Sidebar Header */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Snippets</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {displayedSnippets?.length || 0}
+                {' '}
+                snippets
               </p>
-              {!searchQuery && (
+            </div>
+            <button
+              type="button"
+              onClick={() => setSnippetsSidebarOpen(false)}
+              className="lg:hidden p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Create Button */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={handleCreateSnippet}
+              className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 font-medium"
+              data-onboarding="create-snippet-button"
+            >
+              <PlusIcon className="h-5 w-5" />
+              Create Snippet
+            </button>
+          </div>
+
+          {/* Search and Filters */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-4">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={t('snippets.searchSnippets')}
+              className="w-full"
+            />
+
+            <FilterBar
+              filters={filterConfigs}
+              activeFilters={activeFilters}
+              onFilterChange={handleFilterChange}
+              onClearAll={clearAllFilters}
+              className="w-full"
+            />
+          </div>
+
+          {/* Snippets List */}
+          <div className="flex-1 overflow-y-auto">
+            {displayedSnippets?.length === 0
+              ? (
+                  <div className="p-6 text-center">
+                    <div className="text-4xl mb-4">📦</div>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                      {searchQuery ? 'No snippets found' : 'No snippets yet'}
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      {searchQuery
+                        ? 'Try adjusting your search terms or filters'
+                        : 'Save your first code snippet, prompt, or template to get started'}
+                    </p>
+                    {!searchQuery && (
+                      <button
+                        type="button"
+                        onClick={handleCreateSnippet}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
+                      >
+                        Create First Snippet
+                      </button>
+                    )}
+                  </div>
+                )
+              : (
+                  <div className="space-y-2 p-2">
+                    {displayedSnippets?.map(snippet => (
+                      <div
+                        key={snippet._id}
+                        onClick={() => handleSnippetSelect(snippet._id)}
+                        className={`
+                      p-3 rounded-lg border cursor-pointer transition-colors
+                      ${selectedSnippet === snippet._id
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }
+                    `}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-gray-900 dark:text-white truncate">
+                              {snippet.title}
+                            </h4>
+                            <div className="flex items-center gap-2 mt-1">
+                              {snippet.language && (
+                                <span className={`text-xs px-2 py-1 rounded-full ${getLanguageStyle(snippet.language)}`}>
+                                  {LANGUAGES.find(l => l.value === snippet.language)?.label || snippet.language}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                <TagIcon className="h-3 w-3" />
+                                {snippet.category}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                              {snippet.content.substring(0, 100)}
+                              {snippet.content.length > 100 ? '...' : ''}
+                            </p>
+                            <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mt-2">
+                              <ClockIcon className="h-3 w-3" />
+                              {formatDate(snippet._creationTime)}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {snippet.pinned && (
+                              <StarIconSolid className="h-4 w-4 text-yellow-500" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col h-full min-w-0">
+        {/* Mobile Header */}
+        <div className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {isMobileView
+              ? (
+                  <button
+                    type="button"
+                    onClick={handleBackToList}
+                    className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    <ArrowLeftIcon className="h-5 w-5" />
+                  </button>
+                )
+              : (
+                  <button
+                    type="button"
+                    onClick={() => setSnippetsSidebarOpen(true)}
+                    className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    <Bars3Icon className="h-5 w-5" />
+                  </button>
+                )}
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+              {isMobileView && selectedSnippetData ? selectedSnippetData.title : 'Snippets'}
+            </h1>
+          </div>
+          {setAppSidebarOpen && (
+            <button
+              type="button"
+              onClick={setAppSidebarOpen}
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <Bars3Icon className="h-5 w-5" />
+            </button>
+          )}
+        </div>
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-hidden">
+          {/* Mobile: Show snippet detail or editor */}
+          <div className="lg:hidden h-full">
+            {showEditor
+              ? (
+                  <div className="h-full">
+                    <SnippetEditor
+                      snippet={editingSnippetData}
+                      categories={allCategories}
+                      onSave={async (data) => {
+                        try {
+                          if (editingSnippet) {
+                            await updateSnippet({ snippetId: editingSnippet, ...data })
+                            toast.success(t('toasts.snippetUpdated'), {
+                              description: t('toasts.snippetUpdatedDesc'),
+                            })
+                          }
+                          else {
+                            await createSnippet(data)
+                            toast.success(t('toasts.snippetCreated'), {
+                              description: t('toasts.snippetCreatedDesc'),
+                            })
+                          }
+                          setShowEditor(false)
+                          setEditingSnippet(null)
+                          setSelectedSnippet(null)
+                        }
+                        catch (error) {
+                          console.error('Failed to save snippet:', error)
+                          toast.error(t('toasts.operationError'), {
+                            description: t('toasts.operationErrorDesc'),
+                          })
+                        }
+                      }}
+                      onCancel={() => {
+                        setShowEditor(false)
+                        setEditingSnippet(null)
+                        setSelectedSnippet(null)
+                      }}
+                    />
+                  </div>
+                )
+              : selectedSnippet && selectedSnippetData
+                ? (
+                    <div className="h-full overflow-y-auto p-4">
+                      {/* Snippet Detail View */}
+                      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        {/* Header */}
+                        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                                {selectedSnippetData.title}
+                              </h2>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {selectedSnippetData.language && (
+                                  <span className={`text-sm px-3 py-1 rounded-full ${getLanguageStyle(selectedSnippetData.language)}`}>
+                                    {LANGUAGES.find(l => l.value === selectedSnippetData.language)?.label || selectedSnippetData.language}
+                                  </span>
+                                )}
+                                <span className="text-sm px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                                  <TagIcon className="h-4 w-4" />
+                                  {selectedSnippetData.category}
+                                </span>
+                                <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                  <ClockIcon className="h-4 w-4" />
+                                  {formatDate(selectedSnippetData._creationTime)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6">
+                          <pre className="bg-gray-900 text-gray-100 font-mono text-sm p-4 rounded-lg overflow-x-auto whitespace-pre-wrap break-all">
+                            <code>{selectedSnippetData.content}</code>
+                          </pre>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750 flex items-center justify-between">
+                          <CopyButton
+                            content={selectedSnippetData.content}
+                            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                          >
+                            Copy to Clipboard
+                          </CopyButton>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void handleTogglePin(selectedSnippetData._id)}
+                              className="p-2 text-gray-400 hover:text-yellow-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                              title={selectedSnippetData.pinned ? 'Unpin' : 'Pin'}
+                            >
+                              {selectedSnippetData.pinned
+                                ? (
+                                    <StarIconSolid className="h-5 w-5 text-yellow-500" />
+                                  )
+                                : (
+                                    <StarIcon className="h-5 w-5" />
+                                  )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleEditSnippet(selectedSnippetData._id)}
+                              className="p-2 text-gray-400 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                              title="Edit"
+                            >
+                              <PencilIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowDeleteConfirm(selectedSnippetData._id)}
+                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                              title="Delete"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                : (
+                    <div className="h-full flex items-center justify-center p-6">
+                      <div className="text-center max-w-md">
+                        <div className="text-6xl mb-4">📦</div>
+                        <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
+                          Select a snippet
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-400 mb-4">
+                          Choose a snippet from the sidebar to view its details, or create a new one.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setSnippetsSidebarOpen(true)}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                        >
+                          Browse Snippets
+                        </button>
+                      </div>
+                    </div>
+                  )}
+          </div>
+
+          {/* Desktop: Show grid view */}
+          <div className="hidden lg:block h-full overflow-y-auto">
+            <div className="p-6">
+              {/* Desktop Header */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Snippets</h1>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {displayedSnippets?.length || 0}
+                    {' '}
+                    snippets
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={handleCreateSnippet}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 font-medium"
                 >
-                  Create First Snippet
+                  <PlusIcon className="h-5 w-5" />
+                  Create Snippet
                 </button>
-              )}
+              </div>
+
+              {/* Desktop Content */}
+              {displayedSnippets?.length === 0
+                ? (
+                    <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-center">
+                      <div className="text-6xl mb-4">📦</div>
+                      <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
+                        {searchQuery ? 'No snippets found' : 'No snippets yet'}
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                        {searchQuery
+                          ? 'Try adjusting your search terms or filters'
+                          : 'Save your first code snippet, prompt, or template to get started'}
+                      </p>
+                      {!searchQuery && (
+                        <button
+                          type="button"
+                          onClick={handleCreateSnippet}
+                          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                        >
+                          Create First Snippet
+                        </button>
+                      )}
+                    </div>
+                  )
+                : (
+                    <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6" data-onboarding="snippets-grid">
+                      {displayedSnippets?.map((snippet, index) => (
+                        <div
+                          key={snippet._id}
+                          style={{ animationDelay: `${index * 50}ms` }}
+                          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 group animate-slide-in-from-bottom overflow-hidden"
+                        >
+                          {/* Header */}
+                          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                            <div className="flex justify-between items-start gap-2">
+                              <h3 className="font-semibold text-gray-900 dark:text-white truncate flex-1">
+                                {snippet.title}
+                              </h3>
+                              <div className="flex items-center gap-1">
+                                {snippet.pinned && (
+                                  <StarIconSolid className="h-4 w-4 text-yellow-500" />
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              {snippet.language && (
+                                <span className={`text-xs px-2 py-1 rounded-full ${getLanguageStyle(snippet.language)}`}>
+                                  {LANGUAGES.find(l => l.value === snippet.language)?.label || snippet.language}
+                                </span>
+                              )}
+                              <span className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                                <TagIcon className="h-3 w-3" />
+                                {snippet.category}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Code Preview */}
+                          <div className="p-4">
+                            <pre className="bg-gray-900 text-gray-100 font-mono text-sm p-3 rounded-md max-h-48 overflow-auto">
+                              <code>
+                                {snippet.content.length > 200
+                                  ? `${snippet.content.substring(0, 200)}...`
+                                  : snippet.content}
+                              </code>
+                            </pre>
+                          </div>
+
+                          {/* Footer */}
+                          <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750 flex items-center justify-between">
+                            <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                              <ClockIcon className="h-3 w-3" />
+                              {formatDate(snippet._creationTime)}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <CopyButton
+                                content={snippet.content}
+                                variant="icon"
+                                size="sm"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity bg-transparent hover:bg-gray-200 dark:hover:bg-gray-600 p-2 rounded"
+                                title="Copy to clipboard"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => void handleTogglePin(snippet._id)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity bg-transparent hover:bg-gray-200 dark:hover:bg-gray-600 p-2 rounded"
+                                title={snippet.pinned ? 'Unpin' : 'Pin'}
+                              >
+                                {snippet.pinned
+                                  ? (
+                                      <StarIconSolid className="h-4 w-4 text-yellow-500" />
+                                    )
+                                  : (
+                                      <StarIcon className="h-4 w-4 text-gray-400" />
+                                    )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleEditSnippet(snippet._id)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity bg-transparent hover:bg-gray-200 dark:hover:bg-gray-600 p-2 rounded"
+                                title="Edit"
+                              >
+                                <PencilIcon className="h-4 w-4 text-gray-400" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setShowDeleteConfirm(snippet._id)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity bg-transparent hover:bg-gray-200 dark:hover:bg-gray-600 p-2 rounded"
+                                title="Delete"
+                              >
+                                <TrashIcon className="h-4 w-4 text-red-500" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
             </div>
-          )
-        : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4" data-onboarding="snippets-grid">
-              {displayedSnippets?.map((snippet, index) => (
-                <div
-                  key={snippet._id}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow group animate-slide-in-from-bottom"
-                >
-                  {/* Header */}
-                  <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex justify-between items-center">
-                      <h4 className="font-medium text-gray-900 dark:text-white truncate flex-1">
-                        {snippet.title}
-                      </h4>
-                      <div className="flex items-center gap-2">
-                        {snippet.language && (
-                          <span className={`bg-slate-100 dark:bg-slate-700 text-xs px-2 py-1 rounded-full ${getLanguageStyle(snippet.language)}`}>
-                            {LANGUAGES.find(l => l.value === snippet.language)?.label || snippet.language}
-                          </span>
-                        )}
-                        <span className="bg-slate-100 dark:bg-slate-700 text-xs px-2 py-1 rounded-full text-gray-700 dark:text-gray-300 flex items-center gap-1">
-                          <TagIcon className="h-3 w-3" />
-                          {snippet.category}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+          </div>
+        </div>
+      </main>
 
-                  {/* Code Preview Block */}
-                  <div className="p-4">
-                    <pre className="bg-slate-800 text-slate-200 font-mono text-sm p-4 rounded-md max-h-48 overflow-auto">
-                      <code>
-                        {snippet.content.length > 200
-                          ? `${snippet.content.substring(0, 200)}...`
-                          : snippet.content}
-                      </code>
-                    </pre>
-                  </div>
-
-                  {/* Footer + Action Buttons */}
-                  <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                    <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                      <ClockIcon className="h-3 w-3" />
-                      {formatDate(snippet._creationTime)}
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <CopyButton
-                        content={snippet.content}
-                        variant="icon"
-                        size="sm"
-                        className="bg-transparent hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded"
-                        title="Copy to clipboard"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => void handleTogglePin(snippet._id)}
-                        className="group-hover:opacity-100 opacity-0 transition-opacity duration-200 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded"
-                        title={snippet.pinned ? 'Unpin' : 'Pin'}
-                      >
-                        {snippet.pinned
-                          ? (
-                              <StarIconSolid className="h-4 w-4 text-yellow-500" />
-                            )
-                          : (
-                              <StarIcon className="h-4 w-4 text-gray-400" />
-                            )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleEditSnippet(snippet._id)}
-                        className="group-hover:opacity-100 opacity-0 transition-opacity duration-200 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded"
-                        title="Edit"
-                      >
-                        <PencilIcon className="h-4 w-4 text-gray-400" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowDeleteConfirm(snippet._id)}
-                        className="group-hover:opacity-100 opacity-0 transition-opacity duration-200 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded"
-                        title="Delete"
-                      >
-                        <TrashIcon className="h-4 w-4 text-red-500" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-      {/* Snippet Editor Modal */}
+      {/* Desktop Editor Modal */}
       {showEditor && (
-        <SnippetEditor
-          snippet={editingSnippetData}
-          categories={allCategories}
-          onSave={async (data) => {
-            try {
-              if (editingSnippet) {
-                await updateSnippet({ snippetId: editingSnippet, ...data })
-                toast.success(t('toasts.snippetUpdated'), {
-                  description: t('toasts.snippetUpdatedDesc'),
+        <div className="hidden lg:block">
+          <SnippetEditor
+            snippet={editingSnippetData}
+            categories={allCategories}
+            onSave={async (data) => {
+              try {
+                if (editingSnippet) {
+                  await updateSnippet({ snippetId: editingSnippet, ...data })
+                  toast.success(t('toasts.snippetUpdated'), {
+                    description: t('toasts.snippetUpdatedDesc'),
+                  })
+                }
+                else {
+                  await createSnippet(data)
+                  toast.success(t('toasts.snippetCreated'), {
+                    description: t('toasts.snippetCreatedDesc'),
+                  })
+                }
+                setShowEditor(false)
+                setEditingSnippet(null)
+              }
+              catch (error) {
+                console.error('Failed to save snippet:', error)
+                toast.error(t('toasts.operationError'), {
+                  description: t('toasts.operationErrorDesc'),
                 })
               }
-              else {
-                await createSnippet(data)
-                toast.success(t('toasts.snippetCreated'), {
-                  description: t('toasts.snippetCreatedDesc'),
-                })
-              }
+            }}
+            onCancel={() => {
               setShowEditor(false)
               setEditingSnippet(null)
-            }
-            catch (error) {
-              console.error('Failed to save snippet:', error)
-              toast.error(t('toasts.operationError'), {
-                description: t('toasts.operationErrorDesc'),
-              })
-            }
-          }}
-          onCancel={() => {
-            setShowEditor(false)
-            setEditingSnippet(null)
-          }}
-        />
+            }}
+          />
+        </div>
       )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Delete Snippet
             </h3>
@@ -405,7 +755,10 @@ export function SnippetsPage() {
               </button>
               <button
                 type="button"
-                onClick={() => void handleDeleteSnippet(showDeleteConfirm)}
+                onClick={() => {
+                  void handleDeleteSnippet(showDeleteConfirm)
+                  setSelectedSnippet(null)
+                }}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
                 Delete

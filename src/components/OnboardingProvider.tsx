@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, use, useCallback, useEffect, useMemo, useState } from 'react'
 
 interface OnboardingStep {
   id: string
@@ -100,7 +100,7 @@ interface OnboardingContextType {
 const OnboardingContext = createContext<OnboardingContextType | null>(null)
 
 export function useOnboarding() {
-  const context = useContext(OnboardingContext)
+  const context = use(OnboardingContext)
   if (!context) {
     throw new Error('useOnboarding must be used within an OnboardingProvider')
   }
@@ -115,15 +115,16 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     const hasCompletedOnboarding = localStorage.getItem('onboardingCompleted')
     const hasSeenApp = localStorage.getItem('hasSeenApp')
-    
+
     if (!hasSeenApp) {
-      setIsFirstVisit(true)
       localStorage.setItem('hasSeenApp', 'true')
+      setIsFirstVisit(true)
     }
 
     if (!hasCompletedOnboarding && isFirstVisit) {
       // Start onboarding automatically for first-time users after a brief delay
-      setTimeout(() => setIsOnboardingActive(true), 1000)
+      const timeoutId = setTimeout(() => setIsOnboardingActive(true), 1000)
+      return () => clearTimeout(timeoutId)
     }
   }, [isFirstVisit])
 
@@ -134,35 +135,36 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     setIsOnboardingActive(true)
   }
 
-  const nextStep = () => {
+  const completeOnboarding = useCallback(() => {
+    setIsOnboardingActive(false)
+    localStorage.setItem('onboardingCompleted', 'true')
+  }, [])
+
+  const nextStep = useCallback(() => {
     if (currentStepIndex < onboardingSteps.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1)
-    } else {
+    }
+    else {
       completeOnboarding()
     }
-  }
+  }, [currentStepIndex, completeOnboarding])
 
-  const prevStep = () => {
+  const prevStep = useCallback(() => {
     if (currentStepIndex > 0) {
       setCurrentStepIndex(currentStepIndex - 1)
     }
-  }
+  }, [currentStepIndex])
 
-  const skipOnboarding = () => {
+  const skipOnboarding = useCallback(() => {
     setIsOnboardingActive(false)
     localStorage.setItem('onboardingCompleted', 'true')
-  }
-
-  const completeOnboarding = () => {
-    setIsOnboardingActive(false)
-    localStorage.setItem('onboardingCompleted', 'true')
-  }
+  }, [])
 
   const isStepVisible = (stepId: string) => {
     return isOnboardingActive && currentStep?.id === stepId
   }
 
-  const value: OnboardingContextType = {
+  const value: OnboardingContextType = useMemo(() => ({
     isOnboardingActive,
     currentStep,
     currentStepIndex,
@@ -173,11 +175,11 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     skipOnboarding,
     completeOnboarding,
     isStepVisible,
-  }
+  }), [isOnboardingActive, currentStep, currentStepIndex, nextStep, prevStep, skipOnboarding, completeOnboarding, isStepVisible])
 
   return (
-    <OnboardingContext.Provider value={value}>
+    <OnboardingContext value={value}>
       {children}
-    </OnboardingContext.Provider>
+    </OnboardingContext>
   )
 }

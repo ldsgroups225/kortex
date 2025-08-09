@@ -95,46 +95,46 @@ export function SettingsPage() {
   ]
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 px-4 sm:px-0">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
           {t('settings.title')}
         </h1>
       </div>
 
       {/* Account Information */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="p-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <UserIcon className="h-6 w-6 text-gray-500 dark:text-gray-400" />
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-start sm:items-center space-x-3 mb-4">
+            <UserIcon className="h-6 w-6 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                 {t('settings.account')}
               </h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
                 Manage your account information and sign out.
               </p>
             </div>
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <EnvelopeIcon className="h-5 w-5 text-gray-400" />
-              <div>
+            <div className="flex items-start sm:items-center space-x-3">
+              <EnvelopeIcon className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+              <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 dark:text-white">
                   {t('auth.email')}
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600 dark:text-gray-400 break-all">
                   {loggedInUser?.email || 'Loading...'}
                 </p>
               </div>
             </div>
 
-            <div className="flex space-x-3 pt-4">
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                className="w-full sm:w-auto flex items-center justify-center sm:justify-start space-x-2 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
               >
                 <ArrowRightOnRectangleIcon className="h-4 w-4" />
                 <span>{t('settings.signOut')}</span>
@@ -146,14 +146,14 @@ export function SettingsPage() {
 
       {/* Appearance Settings */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="p-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <SunIcon className="h-6 w-6 text-gray-500 dark:text-gray-400" />
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-start sm:items-center space-x-3 mb-4">
+            <SunIcon className="h-6 w-6 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                 {t('settings.appearance')}
               </h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
                 Change the look and feel of your app.
               </p>
             </div>
@@ -161,10 +161,10 @@ export function SettingsPage() {
 
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 block">
                 {t('settings.theme')}
               </label>
-              <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {themeOptions.map((option) => {
                   const Icon = option.icon
                   const isSelected = localTheme === option.value
@@ -174,15 +174,15 @@ export function SettingsPage() {
                       key={option.value}
                       onClick={() => void handleThemeChange(option.value as 'light' | 'dark' | 'system')}
                       disabled={isLoading}
-                      className={`relative flex items-center space-x-3 p-3 rounded-lg border transition-colors ${isSelected
+                      className={`relative flex items-center space-x-3 p-3 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isSelected
                         ? 'bg-blue-50 dark:bg-primary/20 border-primary font-medium text-blue-700 dark:text-blue-300'
                         : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
                       }`}
                     >
-                      <Icon className="h-5 w-5" />
-                      <span className="text-sm font-medium">{option.label}</span>
+                      <Icon className="h-5 w-5 flex-shrink-0" />
+                      <span className="text-sm font-medium flex-1 text-left">{option.label}</span>
                       {isSelected && (
-                        <CheckIcon className="absolute top-2 right-2 h-4 w-4 text-primary" />
+                        <CheckIcon className="h-4 w-4 text-primary flex-shrink-0" />
                       )}
                     </button>
                   )
@@ -195,14 +195,14 @@ export function SettingsPage() {
 
       {/* Language Settings */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="p-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="h-6 w-6 text-gray-500 dark:text-gray-400">🌐</div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-start sm:items-center space-x-3 mb-4">
+            <div className="h-6 w-6 text-gray-500 dark:text-gray-400 flex-shrink-0">🌐</div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                 {t('settings.language')}
               </h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
                 Choose your preferred language for the interface.
               </p>
             </div>
@@ -210,11 +210,11 @@ export function SettingsPage() {
 
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 block">
                 {t('settings.language')}
               </label>
-              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {languageOptions.map(option => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {languageOptions.map((option) => {
                   const isSelected = localLanguage === option.value
                   return (
                     <button
@@ -222,15 +222,15 @@ export function SettingsPage() {
                       key={option.value}
                       onClick={() => void handleLanguageChange(option.value as 'en' | 'fr')}
                       disabled={isLoading}
-                      className={`relative flex items-center space-x-3 p-3 rounded-lg border transition-colors ${isSelected
+                      className={`relative flex items-center space-x-3 p-3 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isSelected
                         ? 'bg-blue-50 dark:bg-primary/20 border-primary font-medium text-blue-700 dark:text-blue-300'
                         : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
                       }`}
                     >
-                      <span className="text-lg">{option.flag}</span>
-                      <span className="text-sm font-medium">{option.label}</span>
+                      <span className="text-lg flex-shrink-0">{option.flag}</span>
+                      <span className="text-sm font-medium flex-1 text-left">{option.label}</span>
                       {isSelected && (
-                        <CheckIcon className="absolute top-2 right-2 h-4 w-4 text-primary" />
+                        <CheckIcon className="h-4 w-4 text-primary flex-shrink-0" />
                       )}
                     </button>
                   )
@@ -246,14 +246,14 @@ export function SettingsPage() {
 
       {/* Danger Zone */}
       <div className="bg-red-50 dark:bg-red-500/10 rounded-lg shadow-sm border border-red-500 dark:border-red-600">
-        <div className="p-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <ExclamationTriangleIcon className="h-6 w-6 text-red-600 dark:text-red-400" />
-            <div>
-              <h2 className="text-lg font-semibold text-red-600 dark:text-red-400">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-start sm:items-center space-x-3 mb-4">
+            <ExclamationTriangleIcon className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base sm:text-lg font-semibold text-red-600 dark:text-red-400">
                 {t('settings.dangerZone')}
               </h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
                 Irreversible actions that require careful consideration.
               </p>
             </div>
@@ -261,13 +261,13 @@ export function SettingsPage() {
 
           <div className="space-y-4">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 {t('settings.deleteAccountDescription')}
               </p>
               <button
                 type="button"
                 onClick={handleDeleteAccount}
-                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-colors"
+                className="w-full sm:w-auto flex items-center justify-center sm:justify-start space-x-2 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-colors"
               >
                 <TrashIcon className="h-4 w-4" />
                 <span>{t('settings.deleteAccount')}</span>
