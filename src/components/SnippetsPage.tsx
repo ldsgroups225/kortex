@@ -18,6 +18,7 @@ import { api } from '../../convex/_generated/api'
 import { useOfflineSnippets } from '../lib/useOfflineSnippets'
 import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
+import { OfflineStatus } from './OfflineStatus'
 import { SearchBar } from './SearchBar'
 
 const LANGUAGES = [
@@ -68,7 +69,8 @@ export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPage
     searchSnippets,
     getUserCategories,
     getUserLanguages: _getUserLanguages,
-    syncStatus: _syncStatus,
+    syncStatus,
+    forceSync,
   } = useOfflineSnippets(loggedInUser?._id || null)
 
   // Get categories from offline hook
@@ -285,6 +287,7 @@ export function SnippetsPage({ setSidebarOpen: setAppSidebarOpen }: SnippetsPage
               className="w-full"
             />
           </div>
+
 
           {/* Snippets List */}
           <div className="flex-1 overflow-y-auto">

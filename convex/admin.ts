@@ -108,11 +108,19 @@ export const getAdminAnalytics = query({
       .slice(0, 10)
 
     // Get recent activity
-    const recentActivity = await ctx.db
+    const recentActivityLogs = await ctx.db
       .query('adminLogs')
       .withIndex('by_timestamp', q => q.gte('timestamp', now - 7 * 24 * 60 * 60 * 1000))
       .order('desc')
       .take(20)
+
+    // Map to only include fields specified in the validator
+    const recentActivity = recentActivityLogs.map(log => ({
+      action: log.action,
+      timestamp: log.timestamp,
+      userId: log.userId,
+      details: log.details,
+    }))
 
     return {
       totalUsers: totalUsers.length,

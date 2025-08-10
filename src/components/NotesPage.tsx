@@ -10,13 +10,14 @@ import {
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
 import { useQuery } from 'convex/react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import { useOfflineNotes } from '../lib/useOfflineNotes'
 import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
+import { OfflineStatus } from './OfflineStatus'
 import { RichTextEditor } from './RichTextEditor'
 import { SearchBar } from './SearchBar'
 import { TagBadge } from './TagBadge'
@@ -51,7 +52,8 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
     selectNote,
     searchNotes,
     getUserTags,
-    syncStatus: _syncStatus,
+    syncStatus,
+    forceSync,
   } = useOfflineNotes(loggedInUser?._id || null)
 
   // Auto-save functionality - using offline notes directly
@@ -78,18 +80,25 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
     }
   }, [selectedNote, pendingChanges, updateNote, t])
 
-  // Auto-save every 2 seconds
+  // Auto-save every 2 seconds - use useRef to avoid dependency on saveChanges
+  const saveChangesRef = useRef(saveChanges)
+  saveChangesRef.current = saveChanges
+
   useEffect(() => {
-    const timer = setTimeout(saveChanges, 2000)
+    const timer = setTimeout(() => {
+      saveChangesRef.current()
+    }, 2000)
     return () => clearTimeout(timer)
-  }, [saveChanges])
+  }, [pendingChanges]) // Only depend on pendingChanges, not the function itself
 
   // Save on unmount
   useEffect(() => {
     return () => {
-      saveChanges()
+      // Access the current function directly to avoid stale closure
+      const currentSaveChanges = saveChangesRef.current
+      currentSaveChanges()
     }
-  }, [saveChanges])
+  }, []) // Empty dependency array for unmount effect
 
   // Get user tags
   const userTags = getUserTags()

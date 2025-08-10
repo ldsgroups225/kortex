@@ -21,6 +21,7 @@ import { api } from '../../convex/_generated/api'
 import { useOfflineTodos } from '../hooks/useOfflineTodos'
 import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
+import { OfflineStatus } from './OfflineStatus'
 import { PomodoroTimer } from './PomodoroTimer'
 import { SearchBar } from './SearchBar'
 import { TagInput } from './TagInput'
@@ -493,6 +494,8 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     updateTodo: updateOfflineTodo,
     deleteTodo: deleteOfflineTodo,
     toggleTodoStatus: toggleOfflineTodoStatus,
+    syncStatus,
+    forceSyncAll: forceSync,
   } = useOfflineTodos()
 
   // Still get users for UserSelector component
@@ -608,12 +611,17 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     setIsCreating(true)
 
     try {
-      await createOfflineTodo({
+      const createData: any = {
         title,
-        description: '',
         tags: newTodoTags,
-        assignedToUserId: newTodoAssignedTo,
-      })
+      }
+
+      // Only include assignedToUserId if it has a value
+      if (newTodoAssignedTo) {
+        createData.assignedToUserId = newTodoAssignedTo
+      }
+
+      await createOfflineTodo(createData)
 
       setNewTodoTitle('')
       setNewTodoTags([])
@@ -641,13 +649,21 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     if (!editingTodo || !editTitle.trim())
       return
 
-    const updates = {
+    const updates: any = {
       title: editTitle.trim(),
-      description: editDescription,
       status: editStatus,
       tags: editTags,
-      dueDate: editDueDate ? new Date(editDueDate).getTime() : undefined,
-      assignedToUserId: editAssignedTo,
+    }
+
+    // Only include optional fields if they have meaningful values
+    if (editDescription?.trim()) {
+      updates.description = editDescription.trim()
+    }
+    if (editDueDate) {
+      updates.dueDate = new Date(editDueDate).getTime()
+    }
+    if (editAssignedTo) {
+      updates.assignedToUserId = editAssignedTo
     }
 
     setEditingTodo(null)
@@ -915,6 +931,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               onClearAll={clearAllFilters}
             />
           </div>
+
         </div>
 
         {/* Quick Add - Mobile */}

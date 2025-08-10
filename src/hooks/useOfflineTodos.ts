@@ -138,31 +138,50 @@ function convertToFrontendTodo(automergeId: string, todo: AutomergeTodo): Todo {
 
 // Helper to convert Convex todo to Automerge todo
 function convertToAutomergeTodo(convexTodo: any, userId: string): AutomergeTodo {
-  return {
+  // Build createdByUser object with only defined fields
+  const createdByUser: { id: string, name?: string, email?: string } = {
+    id: convexTodo.createdByUser._id,
+  }
+
+  // Only add optional fields if they have values (avoid undefined)
+  if (convexTodo.createdByUser.name) {
+    createdByUser.name = convexTodo.createdByUser.name
+  }
+  if (convexTodo.createdByUser.email) {
+    createdByUser.email = convexTodo.createdByUser.email
+  }
+
+  const automergeDoc: AutomergeTodo = {
     id: convexTodo._id,
     title: convexTodo.title,
-    description: convexTodo.description,
     status: convexTodo.status,
     tags: convexTodo.tags || [],
-    assignedToUserId: convexTodo.assignedToUserId,
-    assignedToUser: convexTodo.assignedToUser
-      ? {
-          id: convexTodo.assignedToUser._id,
-          name: convexTodo.assignedToUser.name,
-          email: convexTodo.assignedToUser.email,
-        }
-      : undefined,
-    createdByUser: {
-      id: convexTodo.createdByUser._id,
-      name: convexTodo.createdByUser.name,
-      email: convexTodo.createdByUser.email,
-    },
-    dueDate: convexTodo.dueDate,
+    createdByUser,
     createdAt: convexTodo.createdAt || convexTodo._creationTime,
     updatedAt: convexTodo.updatedAt || convexTodo._creationTime,
     syncStatus: 'synced',
     userId,
   }
+
+  // Only set optional fields if they have values (avoid undefined)
+  if (convexTodo.description) {
+    automergeDoc.description = convexTodo.description
+  }
+  if (convexTodo.assignedToUserId) {
+    automergeDoc.assignedToUserId = convexTodo.assignedToUserId
+  }
+  if (convexTodo.assignedToUser) {
+    automergeDoc.assignedToUser = {
+      id: convexTodo.assignedToUser._id,
+      name: convexTodo.assignedToUser.name,
+      email: convexTodo.assignedToUser.email,
+    }
+  }
+  if (convexTodo.dueDate) {
+    automergeDoc.dueDate = convexTodo.dueDate
+  }
+
+  return automergeDoc
 }
 
 export function useOfflineTodos() {
@@ -216,13 +235,23 @@ export function useOfflineTodos() {
       try {
         if (todo.isOfflineOnly) {
           // Create new todo on server
-          const convexId = await createTodoMutation({
+          const createData: any = {
             title: todo.title,
-            description: todo.description,
             tags: todo.tags,
-            assignedToUserId: todo.assignedToUserId as Id<'users'> | undefined,
-            dueDate: todo.dueDate,
-          })
+          }
+
+          // Only include optional fields if they have values
+          if (todo.description) {
+            createData.description = todo.description
+          }
+          if (todo.assignedToUserId) {
+            createData.assignedToUserId = todo.assignedToUserId as Id<'users'>
+          }
+          if (todo.dueDate) {
+            createData.dueDate = todo.dueDate
+          }
+
+          const convexId = await createTodoMutation(createData)
 
           // Update local document with server ID and mark as synced
           setTodosDoc(current => Automerge.change(current, (draft) => {
@@ -239,15 +268,25 @@ export function useOfflineTodos() {
         }
         else {
           // Update existing todo on server
-          await updateTodoMutation({
+          const updateData: any = {
             id: automergeId as Id<'todos'>,
             title: todo.title,
-            description: todo.description,
             status: todo.status,
             tags: todo.tags,
-            assignedToUserId: todo.assignedToUserId as Id<'users'> | undefined,
-            dueDate: todo.dueDate,
-          })
+          }
+
+          // Only include optional fields if they have values
+          if (todo.description) {
+            updateData.description = todo.description
+          }
+          if (todo.assignedToUserId) {
+            updateData.assignedToUserId = todo.assignedToUserId as Id<'users'>
+          }
+          if (todo.dueDate) {
+            updateData.dueDate = todo.dueDate
+          }
+
+          await updateTodoMutation(updateData)
 
           // Mark as synced
           setTodosDoc(current => Automerge.change(current, (draft) => {
@@ -324,7 +363,7 @@ export function useOfflineTodos() {
     }
 
     syncWithConvex()
-  }, [convexTodos, currentUser, isOnline, todosDoc, syncPendingChanges])
+  }, [convexTodos, currentUser, isOnline, syncPendingChanges]) // Removed todosDoc from dependencies
 
   // Get todos organized by status
   const todos = useMemo(() => {
@@ -359,8 +398,33 @@ export function useOfflineTodos() {
   const syncStatus = useMemo(() => {
     const pending = allTodos.filter(t => t.syncStatus === 'pending' || t.isOfflineOnly).length
     const failed = allTodos.filter(t => t.syncStatus === 'failed').length
-    return { pending, failed, synced: allTodos.length - pending - failed }
-  }, [allTodos])
+    
+    // Determine connection state
+    let connectionState: 'online' | 'offline' | 'syncing' | 'error'
+    if (!isOnline) {
+      connectionState = 'offline'
+    } else if (syncInProgress) {
+      connectionState = 'syncing'
+    } else if (failed > 0) {
+      connectionState = 'error'
+    } else {
+      connectionState = 'online'
+    }
+    
+    // Return SyncStatus compatible object
+    return {
+      connectionState,
+      lastSync: lastSyncTime ? lastSyncTime.getTime() : 0,
+      isOnline,
+      isSyncing: syncInProgress,
+      offlineChanges: pending,
+      pendingSyncs: pending,
+      // Keep legacy properties for backward compatibility
+      pending,
+      failed,
+      synced: allTodos.length - pending - failed
+    }
+  }, [allTodos, isOnline, syncInProgress, lastSyncTime])
 
   // Create todo
   const createTodo = useCallback(async (data: {
@@ -378,25 +442,41 @@ export function useOfflineTodos() {
     const todoId = automergeUtils.generateId()
     const now = Date.now()
 
+    // Build createdByUser object with only defined fields
+    const createdByUser: { id: string, name?: string, email?: string } = {
+      id: currentUser._id,
+    }
+
+    // Only add optional fields if they have values (avoid undefined)
+    if (currentUser.name) {
+      createdByUser.name = currentUser.name
+    }
+    if (currentUser.email) {
+      createdByUser.email = currentUser.email
+    }
+
     const newTodo: AutomergeTodo = {
       id: todoId,
       title: data.title,
-      description: data.description,
       status: 'todo',
       tags: data.tags || [],
-      assignedToUserId: data.assignedToUserId as string | undefined,
-      assignedToUser: undefined, // Will be populated on sync if assigned
-      createdByUser: {
-        id: currentUser._id,
-        name: currentUser.name,
-        email: currentUser.email,
-      },
-      dueDate: data.dueDate,
+      createdByUser,
       createdAt: now,
       updatedAt: now,
       isOfflineOnly: true,
       syncStatus: 'pending',
       userId: currentUser._id,
+    }
+
+    // Only set optional fields if they have values
+    if (data.description) {
+      newTodo.description = data.description
+    }
+    if (data.assignedToUserId) {
+      newTodo.assignedToUserId = data.assignedToUserId as string
+    }
+    if (data.dueDate) {
+      newTodo.dueDate = data.dueDate
     }
 
     // Add to local document
@@ -413,13 +493,23 @@ export function useOfflineTodos() {
     // Try to sync immediately if online
     if (isOnline) {
       try {
-        const convexId = await createTodoMutation({
+        const createMutationData: any = {
           title: data.title,
-          description: data.description,
           tags: data.tags,
-          assignedToUserId: data.assignedToUserId as Id<'users'> | undefined,
-          dueDate: data.dueDate,
-        })
+        }
+
+        // Only include optional fields if they have values
+        if (data.description) {
+          createMutationData.description = data.description
+        }
+        if (data.assignedToUserId) {
+          createMutationData.assignedToUserId = data.assignedToUserId as Id<'users'>
+        }
+        if (data.dueDate) {
+          createMutationData.dueDate = data.dueDate
+        }
+
+        const convexId = await createTodoMutation(createMutationData)
 
         // Update with server ID
         setTodosDoc(current => Automerge.change(current, (draft) => {
@@ -467,16 +557,38 @@ export function useOfflineTodos() {
       if (todo) {
         if (updates.title !== undefined)
           todo.title = updates.title
-        if (updates.description !== undefined)
-          todo.description = updates.description
+        if (updates.description !== undefined) {
+          if (updates.description) {
+            todo.description = updates.description
+          }
+          else {
+            // Remove the property if description is empty
+            delete todo.description
+          }
+        }
         if (updates.status !== undefined)
           todo.status = updates.status
         if (updates.tags !== undefined)
           todo.tags = updates.tags
-        if (updates.assignedToUserId !== undefined)
-          todo.assignedToUserId = updates.assignedToUserId as string | undefined
-        if (updates.dueDate !== undefined)
-          todo.dueDate = updates.dueDate
+        if (updates.assignedToUserId !== undefined) {
+          if (updates.assignedToUserId) {
+            todo.assignedToUserId = updates.assignedToUserId as string
+          }
+          else {
+            // Remove the property if no user is assigned
+            delete todo.assignedToUserId
+            delete todo.assignedToUser
+          }
+        }
+        if (updates.dueDate !== undefined) {
+          if (updates.dueDate) {
+            todo.dueDate = updates.dueDate
+          }
+          else {
+            // Remove the property if no due date
+            delete todo.dueDate
+          }
+        }
 
         todo.updatedAt = Date.now()
         todo.syncStatus = todo.isOfflineOnly ? 'pending' : 'pending'
@@ -491,11 +603,25 @@ export function useOfflineTodos() {
     // Try to sync immediately if online
     if (isOnline && !existingTodo.isOfflineOnly) {
       try {
-        await updateTodoMutation({
+        const mutationData: any = {
           id: todoId as Id<'todos'>,
-          ...updates,
-          assignedToUserId: updates.assignedToUserId as Id<'users'> | undefined,
-        })
+          title: updates.title,
+          status: updates.status,
+          tags: updates.tags,
+        }
+
+        // Only include optional fields if they have values
+        if (updates.description) {
+          mutationData.description = updates.description
+        }
+        if (updates.dueDate) {
+          mutationData.dueDate = updates.dueDate
+        }
+        if (updates.assignedToUserId) {
+          mutationData.assignedToUserId = updates.assignedToUserId as Id<'users'>
+        }
+
+        await updateTodoMutation(mutationData)
 
         setTodosDoc(current => Automerge.change(current, (draft) => {
           if (draft.todos[todoId]) {

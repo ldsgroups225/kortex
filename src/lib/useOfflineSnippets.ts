@@ -1,6 +1,6 @@
 import type { Id } from '../../convex/_generated/dataModel'
 import { useMutation, useQuery } from 'convex/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import { automergeUtils } from './automergeUtils'
@@ -96,8 +96,9 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
     }
   }, [userId, storageKey])
 
-  // Save snippets to localStorage
-  const saveToLocal = useCallback(async () => {
+  // Save snippets to localStorage - avoid dependency on localSnippets to prevent infinite loop
+  const saveToLocalRef = useRef<() => Promise<void>>()
+  saveToLocalRef.current = async () => {
     if (!userId)
       return
 
@@ -108,7 +109,11 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
     catch (error) {
       console.error('Failed to save snippets to localStorage:', error)
     }
-  }, [userId, storageKey, localSnippets])
+  }
+
+  const saveToLocal = useCallback(async () => {
+    return saveToLocalRef.current!()
+  }, []) // No dependencies to avoid recreation
 
   // Initialize local snippets on mount
   useEffect(() => {
@@ -122,63 +127,65 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
   // Auto-save to localStorage when localSnippets changes
   useEffect(() => {
     if (isInitialized) {
-      saveToLocal()
+      saveToLocalRef.current!()
     }
-  }, [localSnippets, isInitialized, saveToLocal])
+  }, [localSnippets, isInitialized]) // Remove saveToLocal from dependencies
 
-  // Merge Convex snippets with local snippets
-  const mergedSnippets = useMemo(() => {
-    const snippetsMap = new Map<string, OfflineSnippet>()
+  // Sync Convex snippets with local snippets when they change
+  useEffect(() => {
+    if (isInitialized && convexSnippets && offlineSync.status.connectionState === 'online') {
+      setLocalSnippets(prevSnippets => {
+        const newSnippetsMap = new Map<string, OfflineSnippet>(prevSnippets)
+        
+        // Only update snippets that came from Convex
+        convexSnippets.forEach((convexSnippet) => {
+          const existingLocal = Array.from(prevSnippets.values())
+            .find(snippet => snippet.convexId === convexSnippet._id)
 
-    // Add local snippets
-    localSnippets.forEach((snippet, snippetId) => {
-      snippetsMap.set(snippetId, snippet)
-    })
-
-    // Merge with Convex snippets (when online)
-    if (convexSnippets && offlineSync.status.connectionState === 'online') {
-      convexSnippets.forEach((convexSnippet) => {
-        const existingLocal = Array.from(localSnippets.values())
-          .find(snippet => snippet.convexId === convexSnippet._id)
-
-        if (existingLocal) {
-          // Update existing local snippet with Convex data if Convex is newer
-          if (!existingLocal.lastSync || convexSnippet._creationTime > existingLocal.lastSync) {
-            snippetsMap.set(existingLocal._id, {
-              ...existingLocal,
+          if (existingLocal) {
+            // Update existing local snippet with Convex data if Convex is newer
+            if (!existingLocal.lastSync || convexSnippet._creationTime > existingLocal.lastSync) {
+              newSnippetsMap.set(existingLocal._id, {
+                ...existingLocal,
+                title: convexSnippet.title,
+                content: convexSnippet.content,
+                language: convexSnippet.language,
+                category: convexSnippet.category,
+                pinned: convexSnippet.pinned,
+                updatedAt: convexSnippet._creationTime,
+                lastSync: Date.now(),
+                hasLocalChanges: false,
+              })
+            }
+          }
+          else {
+            // Create new local snippet from Convex data
+            const newLocalSnippet: OfflineSnippet = {
+              _id: automergeUtils.generateId(),
+              convexId: convexSnippet._id,
               title: convexSnippet.title,
               content: convexSnippet.content,
               language: convexSnippet.language,
               category: convexSnippet.category,
               pinned: convexSnippet.pinned,
+              createdAt: convexSnippet._creationTime,
               updatedAt: convexSnippet._creationTime,
               lastSync: Date.now(),
+              isLocal: false,
               hasLocalChanges: false,
-            })
+            }
+            newSnippetsMap.set(newLocalSnippet._id, newLocalSnippet)
           }
-        }
-        else {
-          // Create new local snippet from Convex data
-          const newLocalSnippet: OfflineSnippet = {
-            _id: automergeUtils.generateId(),
-            convexId: convexSnippet._id,
-            title: convexSnippet.title,
-            content: convexSnippet.content,
-            language: convexSnippet.language,
-            category: convexSnippet.category,
-            pinned: convexSnippet.pinned,
-            createdAt: convexSnippet._creationTime,
-            updatedAt: convexSnippet._creationTime,
-            lastSync: Date.now(),
-            isLocal: false,
-            hasLocalChanges: false,
-          }
-          snippetsMap.set(newLocalSnippet._id, newLocalSnippet)
-        }
+        })
+        
+        return newSnippetsMap
       })
     }
+  }, [convexSnippets, isInitialized, offlineSync.status.connectionState])
 
-    return Array.from(snippetsMap.values()).sort((a, b) => {
+  // Get sorted snippets from local snippets
+  const mergedSnippets = useMemo(() => {
+    return Array.from(localSnippets.values()).sort((a, b) => {
       // Sort pinned snippets first, then by updatedAt
       if (a.pinned && !b.pinned)
         return -1
@@ -186,19 +193,7 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
         return 1
       return b.updatedAt - a.updatedAt
     })
-  }, [localSnippets, convexSnippets, offlineSync.status.connectionState])
-
-  // Update localSnippets when mergedSnippets changes
-  useEffect(() => {
-    if (isInitialized) {
-      const newSnippetsMap = new Map<string, OfflineSnippet>()
-      mergedSnippets.forEach((snippet) => {
-        newSnippetsMap.set(snippet._id, snippet)
-      })
-      // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect
-      setLocalSnippets(newSnippetsMap)
-    }
-  }, [mergedSnippets, isInitialized])
+  }, [localSnippets])
 
   // Search functionality
   const searchResults = useMemo(() => {

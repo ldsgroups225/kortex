@@ -16,6 +16,24 @@ interface OfflineStatusProps {
 export function OfflineStatus({ status, onForcSync, className = '' }: OfflineStatusProps) {
   const { t } = useTranslation()
 
+  // Handle cases where status might be undefined or have missing properties
+  if (!status) {
+    return (
+      <div className={`bg-gray-50 dark:bg-gray-900/20 rounded-lg p-3 ${className}`}>
+        <div className="flex items-center space-x-3">
+          <div className="flex-shrink-0 text-gray-400">
+            <SignalSlashIcon className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              {t('sync.loading') || 'Loading...'}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const getStatusInfo = () => {
     switch (status.connectionState) {
       case 'online':
@@ -25,7 +43,7 @@ export function OfflineStatus({ status, onForcSync, className = '' }: OfflineSta
           bgColor: 'bg-green-50 dark:bg-green-900/20',
           textColor: 'text-green-700 dark:text-green-300',
           iconColor: 'text-green-600 dark:text-green-400',
-          description: status.lastSync > 0
+          description: status.lastSync && status.lastSync > 0
             ? t('sync.lastSyncAt', {
                 time: new Date(status.lastSync).toLocaleTimeString(),
               })
@@ -39,8 +57,8 @@ export function OfflineStatus({ status, onForcSync, className = '' }: OfflineSta
           bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
           textColor: 'text-yellow-700 dark:text-yellow-300',
           iconColor: 'text-yellow-600 dark:text-yellow-400',
-          description: status.offlineChanges > 0
-            ? t('sync.changesWaiting', { count: status.offlineChanges })
+          description: (status.offlineChanges || 0) > 0
+            ? t('sync.changesWaiting', { count: status.offlineChanges || 0 })
             : t('sync.workingOffline'),
         }
 
@@ -51,7 +69,7 @@ export function OfflineStatus({ status, onForcSync, className = '' }: OfflineSta
           bgColor: 'bg-blue-50 dark:bg-blue-900/20',
           textColor: 'text-blue-700 dark:text-blue-300',
           iconColor: 'text-blue-600 dark:text-blue-400',
-          description: t('sync.syncingChanges', { count: status.pendingSyncs }),
+          description: t('sync.syncingChanges', { count: status.pendingSyncs || 0 }),
         }
 
       case 'error':
@@ -62,6 +80,17 @@ export function OfflineStatus({ status, onForcSync, className = '' }: OfflineSta
           textColor: 'text-red-700 dark:text-red-300',
           iconColor: 'text-red-600 dark:text-red-400',
           description: t('sync.syncError'),
+        }
+
+      default:
+        // Fallback for unknown connection states
+        return {
+          icon: SignalSlashIcon,
+          text: t('sync.unknown') || 'Unknown',
+          bgColor: 'bg-gray-50 dark:bg-gray-900/20',
+          textColor: 'text-gray-700 dark:text-gray-300',
+          iconColor: 'text-gray-600 dark:text-gray-400',
+          description: t('sync.unknownState') || 'Unknown sync state',
         }
     }
   }
@@ -87,22 +116,22 @@ export function OfflineStatus({ status, onForcSync, className = '' }: OfflineSta
 
             {/* Show counts when relevant */}
             <div className="flex items-center space-x-2 text-xs">
-              {status.offlineChanges > 0 && (
+              {(status.offlineChanges || 0) > 0 && (
                 <span className={`px-2 py-1 rounded-full bg-orange-100 dark:bg-orange-900/30 ${
                   status.connectionState === 'offline'
                     ? 'text-orange-700 dark:text-orange-300'
                     : 'text-orange-600 dark:text-orange-400'
                 }`}
                 >
-                  {status.offlineChanges}
+                  {status.offlineChanges || 0}
                   {' '}
                   {t('sync.pending')}
                 </span>
               )}
 
-              {status.pendingSyncs > 0 && status.connectionState === 'syncing' && (
+              {(status.pendingSyncs || 0) > 0 && status.connectionState === 'syncing' && (
                 <span className="px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-                  {status.pendingSyncs}
+                  {status.pendingSyncs || 0}
                   {' '}
                   {t('sync.syncing')}
                 </span>
@@ -117,7 +146,7 @@ export function OfflineStatus({ status, onForcSync, className = '' }: OfflineSta
 
         {/* Force sync button for offline/error states */}
         {(status.connectionState === 'error'
-          || (status.connectionState === 'offline' && status.offlineChanges > 0))
+          || (status.connectionState === 'offline' && (status.offlineChanges || 0) > 0))
         && onForcSync && (
           <button
             type="button"

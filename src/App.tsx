@@ -167,7 +167,93 @@ function AuthenticatedApp({
     ...(loggedInUser ? [{ name: 'Admin', route: 'admin' as Route, icon: ShieldCheckIcon }] : []),
   ]
 
-  // For notes, snippets, and todos pages, we want full height layout with proper navigation
+  // Create a unified sidebar component
+  const Sidebar = ({ includeOfflineStatus = true }: { includeOfflineStatus?: boolean }) => (
+    <div className="flex flex-col h-full">
+      {/* Logo */}
+      <div className="flex items-center justify-between h-16 px-6 border-b border-border dark:border-border-dark">
+        <div className="flex items-center space-x-3">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white" data-onboarding="app-logo">Kortex</h1>
+          <OfflineStatusIndicator
+            connectionState={offlineSync.status.connectionState}
+            offlineChanges={offlineSync.status.offlineChanges}
+            className="flex-shrink-0"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setSidebarOpen(false)}
+          className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          <XMarkIcon className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 px-4 py-6 space-y-2" data-onboarding="navigation">
+        {navigation.map(item => (
+          <button
+            type="button"
+            key={item.name}
+            onClick={() => {
+              setCurrentRoute(item.route)
+              setSidebarOpen(false)
+            }}
+            className={`
+              w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors
+              ${currentRoute === item.route
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }
+            `}
+          >
+            <item.icon className="h-5 w-5 mr-3" />
+            {item.name}
+          </button>
+        ))}
+      </nav>
+
+      {/* Sync Status - for pages that need offline functionality */}
+      {includeOfflineStatus && (currentRoute === 'notes' || currentRoute === 'todos' || currentRoute === 'snippets') && (
+        <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+          <OfflineStatus
+            status={offlineSync.status}
+            onForcSync={offlineSync.forceSync}
+            className="mb-4"
+          />
+        </div>
+      )}
+
+      {/* User info and controls */}
+      <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-4">
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          {darkMode
+            ? (
+                <SunIcon className="h-5 w-5 mr-3" />
+              )
+            : (
+                <MoonIcon className="h-5 w-5 mr-3" />
+              )}
+          {darkMode ? t('settings.lightMode') : t('settings.darkMode')}
+        </button>
+
+        <div className="flex items-center justify-between">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+              {loggedInUser?.email || 'User'}
+            </p>
+          </div>
+          <SignOutButton />
+        </div>
+      </div>
+    </div>
+  )
+
+  // For notes page - full height layout
   if (currentRoute === 'notes') {
     return (
       <div className="flex h-screen">
@@ -183,75 +269,11 @@ function AuthenticatedApp({
         <div className={`
           fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}
-        >
-          <div className="flex flex-col h-full">
-            {/* Logo */}
-            <div className="flex items-center justify-between h-16 px-6 border-b border-border dark:border-border-dark">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Kortex</h1>
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(false)}
-                className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Navigation */}
-            <nav className="flex-1 px-4 py-6 space-y-2">
-              {navigation.map(item => (
-                <button
-                  type="button"
-                  key={item.name}
-                  onClick={() => {
-                    setCurrentRoute(item.route)
-                    setSidebarOpen(false)
-                  }}
-                  className={`
-                    w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors
-                    ${currentRoute === item.route
-                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }
-                  `}
-                >
-                  <item.icon className="h-5 w-5 mr-3" />
-                  {item.name}
-                </button>
-              ))}
-            </nav>
-
-            {/* User info and controls */}
-            <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-4">
-              <button
-                type="button"
-                onClick={toggleDarkMode}
-                className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                {darkMode
-                  ? (
-                      <SunIcon className="h-5 w-5 mr-3" />
-                    )
-                  : (
-                      <MoonIcon className="h-5 w-5 mr-3" />
-                    )}
-                {darkMode ? t('settings.lightMode') : t('settings.darkMode')}
-              </button>
-
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                    {loggedInUser?.email || 'User'}
-                  </p>
-                </div>
-                <SignOutButton />
-              </div>
-            </div>
-          </div>
+        `}>
+          <Sidebar />
         </div>
 
-        {/* Notes page content with its own internal layout */}
+        {/* Notes page content */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <NotesPage sidebarOpen={false} setSidebarOpen={() => setSidebarOpen(true)} />
         </div>
@@ -259,7 +281,7 @@ function AuthenticatedApp({
     )
   }
 
-  // For todos page, we want full height layout with proper navigation
+  // For todos page - full height layout
   if (currentRoute === 'todos') {
     return (
       <div className="flex h-screen">
@@ -275,75 +297,11 @@ function AuthenticatedApp({
         <div className={`
           fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}
-        >
-          <div className="flex flex-col h-full">
-            {/* Logo */}
-            <div className="flex items-center justify-between h-16 px-6 border-b border-border dark:border-border-dark">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Kortex</h1>
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(false)}
-                className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Navigation */}
-            <nav className="flex-1 px-4 py-6 space-y-2">
-              {navigation.map(item => (
-                <button
-                  type="button"
-                  key={item.name}
-                  onClick={() => {
-                    setCurrentRoute(item.route)
-                    setSidebarOpen(false)
-                  }}
-                  className={`
-                    w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors
-                    ${currentRoute === item.route
-                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }
-                  `}
-                >
-                  <item.icon className="h-5 w-5 mr-3" />
-                  {item.name}
-                </button>
-              ))}
-            </nav>
-
-            {/* User info and controls */}
-            <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-4">
-              <button
-                type="button"
-                onClick={toggleDarkMode}
-                className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                {darkMode
-                  ? (
-                      <SunIcon className="h-5 w-5 mr-3" />
-                    )
-                  : (
-                      <MoonIcon className="h-5 w-5 mr-3" />
-                    )}
-                {darkMode ? t('settings.lightMode') : t('settings.darkMode')}
-              </button>
-
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                    {loggedInUser?.email || 'User'}
-                  </p>
-                </div>
-                <SignOutButton />
-              </div>
-            </div>
-          </div>
+        `}>
+          <Sidebar />
         </div>
 
-        {/* Todos page content with its own internal layout */}
+        {/* Todos page content */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <TodosPage sidebarOpen={false} setSidebarOpen={() => setSidebarOpen(true)} />
         </div>

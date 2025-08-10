@@ -1,6 +1,6 @@
 import type { Id } from '../../convex/_generated/dataModel'
 import { useMutation, useQuery } from 'convex/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import { automergeUtils } from './automergeUtils'
@@ -94,8 +94,9 @@ export function useOfflineNotes(userId: Id<'users'> | null): UseOfflineNotesRetu
     }
   }, [userId, storageKey])
 
-  // Save notes to localStorage
-  const saveToLocal = useCallback(async () => {
+  // Save notes to localStorage - avoid dependency on localNotes to prevent infinite loop
+  const saveToLocalRef = useRef<() => Promise<void>>()
+  saveToLocalRef.current = async () => {
     if (!userId)
       return
 
@@ -106,7 +107,11 @@ export function useOfflineNotes(userId: Id<'users'> | null): UseOfflineNotesRetu
     catch (error) {
       console.error('Failed to save notes to localStorage:', error)
     }
-  }, [userId, storageKey, localNotes])
+  }
+
+  const saveToLocal = useCallback(async () => {
+    return saveToLocalRef.current!()
+  }, []) // No dependencies to avoid recreation
 
   // Initialize local notes on mount
   useEffect(() => {
@@ -120,61 +125,63 @@ export function useOfflineNotes(userId: Id<'users'> | null): UseOfflineNotesRetu
   // Auto-save to localStorage when localNotes changes
   useEffect(() => {
     if (isInitialized) {
-      saveToLocal()
+      saveToLocalRef.current!()
     }
-  }, [localNotes, isInitialized, saveToLocal])
+  }, [localNotes, isInitialized]) // Remove saveToLocal from dependencies
 
-  // Merge Convex notes with local notes
-  const mergedNotes = useMemo(() => {
-    const notesMap = new Map<string, OfflineNote>()
+  // Sync Convex notes with local notes when they change
+  useEffect(() => {
+    if (isInitialized && convexNotes && offlineSync.status.connectionState === 'online') {
+      setLocalNotes(prevNotes => {
+        const newNotesMap = new Map<string, OfflineNote>(prevNotes)
+        
+        // Only update notes that came from Convex
+        convexNotes.forEach((convexNote) => {
+          const existingLocal = Array.from(prevNotes.values())
+            .find(note => note.convexId === convexNote._id)
 
-    // Add local notes
-    localNotes.forEach((note, noteId) => {
-      notesMap.set(noteId, note)
-    })
-
-    // Merge with Convex notes (when online)
-    if (convexNotes && offlineSync.status.connectionState === 'online') {
-      convexNotes.forEach((convexNote) => {
-        const existingLocal = Array.from(localNotes.values())
-          .find(note => note.convexId === convexNote._id)
-
-        if (existingLocal) {
-          // Update existing local note with Convex data if Convex is newer
-          if (!existingLocal.lastSync || convexNote._creationTime > existingLocal.lastSync) {
-            notesMap.set(existingLocal._id, {
-              ...existingLocal,
+          if (existingLocal) {
+            // Update existing local note with Convex data if Convex is newer
+            if (!existingLocal.lastSync || convexNote._creationTime > existingLocal.lastSync) {
+              newNotesMap.set(existingLocal._id, {
+                ...existingLocal,
+                title: convexNote.title,
+                content: convexNote.content,
+                tags: convexNote.tags,
+                pinned: convexNote.pinned,
+                updatedAt: convexNote._creationTime,
+                lastSync: Date.now(),
+                hasLocalChanges: false,
+              })
+            }
+          }
+          else {
+            // Create new local note from Convex data
+            const newLocalNote: OfflineNote = {
+              _id: automergeUtils.generateId(),
+              convexId: convexNote._id,
               title: convexNote.title,
               content: convexNote.content,
               tags: convexNote.tags,
               pinned: convexNote.pinned,
+              createdAt: convexNote._creationTime,
               updatedAt: convexNote._creationTime,
               lastSync: Date.now(),
+              isLocal: false,
               hasLocalChanges: false,
-            })
+            }
+            newNotesMap.set(newLocalNote._id, newLocalNote)
           }
-        }
-        else {
-          // Create new local note from Convex data
-          const newLocalNote: OfflineNote = {
-            _id: automergeUtils.generateId(),
-            convexId: convexNote._id,
-            title: convexNote.title,
-            content: convexNote.content,
-            tags: convexNote.tags,
-            pinned: convexNote.pinned,
-            createdAt: convexNote._creationTime,
-            updatedAt: convexNote._creationTime,
-            lastSync: Date.now(),
-            isLocal: false,
-            hasLocalChanges: false,
-          }
-          notesMap.set(newLocalNote._id, newLocalNote)
-        }
+        })
+        
+        return newNotesMap
       })
     }
+  }, [convexNotes, isInitialized, offlineSync.status.connectionState])
 
-    return Array.from(notesMap.values()).sort((a, b) => {
+  // Get sorted notes from local notes
+  const mergedNotes = useMemo(() => {
+    return Array.from(localNotes.values()).sort((a, b) => {
       // Sort pinned notes first, then by updatedAt
       if (a.pinned && !b.pinned)
         return -1
@@ -182,19 +189,7 @@ export function useOfflineNotes(userId: Id<'users'> | null): UseOfflineNotesRetu
         return 1
       return b.updatedAt - a.updatedAt
     })
-  }, [localNotes, convexNotes, offlineSync.status.connectionState])
-
-  // Update localNotes when mergedNotes changes
-  useEffect(() => {
-    if (isInitialized) {
-      const newNotesMap = new Map<string, OfflineNote>()
-      mergedNotes.forEach((note) => {
-        newNotesMap.set(note._id, note)
-      })
-      // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect
-      setLocalNotes(newNotesMap)
-    }
-  }, [mergedNotes, isInitialized])
+  }, [localNotes])
 
   // Search functionality
   const searchResults = useMemo(() => {
