@@ -1,11 +1,14 @@
 import type { ConnectionState, SyncStatus } from '../lib/useOfflineSync'
 import {
+  ArrowDownTrayIcon,
+  CheckCircleIcon,
   CloudArrowUpIcon,
   ExclamationTriangleIcon,
   SignalIcon,
   SignalSlashIcon,
 } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
+import { useRegisterSW } from 'virtual:pwa-register/react'
 
 interface OfflineStatusProps {
   status: SyncStatus
@@ -216,6 +219,76 @@ export function OfflineStatusIndicator({
             {offlineChanges > 9 ? '9+' : offlineChanges}
           </span>
         </div>
+      )}
+    </div>
+  )
+}
+
+// PWA Status Badge for the sidebar showing caching/update status
+export function PwaStatusBadge({ className = '' }: { className?: string }) {
+  const { t } = useTranslation()
+
+  const {
+    offlineReady: [offlineReady],
+    needRefresh: [needRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegistered(r) {
+      console.warn('SW Registered:', r)
+    },
+    onRegisterError(error) {
+      console.warn('SW registration error', error)
+    },
+  })
+
+  // Don't show badge if nothing relevant is happening
+  if (!offlineReady && !needRefresh) {
+    return null
+  }
+
+  const getBadgeInfo = () => {
+    if (needRefresh) {
+      return {
+        icon: ArrowDownTrayIcon,
+        text: t('pwa.updateAvailable'),
+        color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+        pulse: true,
+      }
+    }
+
+    if (offlineReady) {
+      return {
+        icon: CheckCircleIcon,
+        text: t('pwa.swCached'),
+        color: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+        pulse: false,
+      }
+    }
+
+    return null
+  }
+
+  const badgeInfo = getBadgeInfo()
+  if (!badgeInfo)
+    return null
+
+  const Icon = badgeInfo.icon
+
+  return (
+    <div className={`flex items-center space-x-2 px-2 py-1 rounded-md text-xs font-medium ${badgeInfo.color} ${className}`}>
+      <Icon className={`h-3 w-3 ${
+        badgeInfo.pulse ? 'animate-pulse' : ''
+      }`}
+      />
+      <span>{badgeInfo.text}</span>
+      {needRefresh && (
+        <button
+          type="button"
+          onClick={() => updateServiceWorker(true)}
+          className="ml-1 text-xs underline hover:no-underline"
+        >
+          {t('pwa.reload')}
+        </button>
       )}
     </div>
   )

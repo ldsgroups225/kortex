@@ -19,9 +19,10 @@ import { AdminDashboard } from './components/AdminDashboard'
 import { KeyboardShortcuts } from './components/KeyboardShortcuts'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
 import { NotesPage } from './components/NotesPage'
-import { OfflineStatus, OfflineStatusIndicator } from './components/OfflineStatus'
+import { OfflineStatus, OfflineStatusIndicator, PwaStatusBadge } from './components/OfflineStatus'
 import { OnboardingProvider } from './components/OnboardingProvider'
 import { OnboardingTooltip } from './components/OnboardingTooltip'
+import { PwaInstallButton, PwaInstallPrompt } from './components/PwaInstallPrompt'
 import { SettingsPage } from './components/SettingsPage'
 import { SnippetsPage } from './components/SnippetsPage'
 import { TodosPage } from './components/TodosPage'
@@ -125,10 +126,12 @@ export default function App() {
             searchRef={searchRef}
           />
           <OnboardingTooltip />
+          <PwaInstallPrompt />
         </Authenticated>
 
         <Unauthenticated>
           <UnauthenticatedApp darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+          <PwaInstallPrompt />
         </Unauthenticated>
       </div>
       <Toaster richColors position="top-right" theme={darkMode ? 'dark' : 'light'} />
@@ -167,8 +170,8 @@ function AuthenticatedApp({
     ...(loggedInUser ? [{ name: 'Admin', route: 'admin' as Route, icon: ShieldCheckIcon }] : []),
   ]
 
-  // Create a unified sidebar component
-  const Sidebar = ({ includeOfflineStatus = true }: { includeOfflineStatus?: boolean }) => (
+  // Render the main layout
+  const renderSidebar = ({ includeOfflineStatus = true }: { includeOfflineStatus?: boolean }) => (
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="flex items-center justify-between h-16 px-6 border-b border-border dark:border-border-dark">
@@ -202,9 +205,9 @@ function AuthenticatedApp({
             className={`
               w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors
               ${currentRoute === item.route
-                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }
+            ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+          }
             `}
           >
             <item.icon className="h-5 w-5 mr-3" />
@@ -269,8 +272,9 @@ function AuthenticatedApp({
         <div className={`
           fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}>
-          <Sidebar />
+        `}
+        >
+          {renderSidebar({})}
         </div>
 
         {/* Notes page content */}
@@ -297,8 +301,9 @@ function AuthenticatedApp({
         <div className={`
           fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}>
-          <Sidebar />
+        `}
+        >
+          {renderSidebar({})}
         </div>
 
         {/* Todos page content */}
@@ -378,8 +383,16 @@ function AuthenticatedApp({
             />
           </div>
 
+          {/* PWA Status Badge */}
+          <div className="border-t border-border dark:border-border-dark p-4">
+            <PwaStatusBadge className="mb-4" />
+          </div>
+
           {/* User info and controls */}
           <div className="border-t border-border dark:border-border-dark p-4 space-y-4">
+            {/* PWA Install Button */}
+            <PwaInstallButton className="mb-4" />
+
             <button
               type="button"
               onClick={toggleDarkMode}

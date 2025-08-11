@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-gray-50 h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>You're Offline</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-full">
+    <div class="min-h-full flex flex-col justify-center items-center px-6 py-12 lg:px-8">
+        <div class="text-center">
+            <!-- Offline icon -->
+            <div class="mx-auto h-24 w-24 mb-8">
+                <svg class="h-full w-full text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+            </div>
+            
+            <!-- Main heading -->
+            <h1 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+                You're offline
+            </h1>
+            
+            <!-- Description -->
+            <p class="mt-4 text-lg text-gray-600 max-w-md mx-auto">
+                It looks like you've lost your internet connection. Check your network and try again.
+            </p>
+            
+            <!-- Retry button -->
+            <div class="mt-8">
+                <button 
+                    onclick="window.location.reload()"
+                    class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                >
+                    <svg class="mr-2 -ml-1 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Try again
+                </button>
+            </div>
+            
+            <!-- Additional info -->
+            <div class="mt-8 text-sm text-gray-500">
+                <p>Make sure you're connected to the internet and refresh this page</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

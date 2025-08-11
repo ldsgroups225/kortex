@@ -1,6 +1,7 @@
 import type { Id } from '../../convex/_generated/dataModel'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { hasPendingSyncRequests, queueSyncRequest, registerBackgroundSync } from '../sw-helpers'
 
 // Connection states
 export type ConnectionState = 'online' | 'offline' | 'syncing' | 'error'
@@ -54,6 +55,19 @@ export function useOfflineSync(_userId: Id<'users'> | null) {
     setConnectionState('syncing')
 
     try {
+      // Register background sync with service worker
+      const backgroundSyncRegistered = await registerBackgroundSync('kortex-sync')
+      if (backgroundSyncRegistered) {
+        console.warn('Background sync registered successfully')
+      }
+
+      // Queue sync request to service worker
+      queueSyncRequest('full-sync')
+
+      // Check for pending changes in service worker queue
+      const pendingChanges = hasPendingSyncRequests()
+      setOfflineChanges(pendingChanges ? 1 : 0) // Simplified - in real implementation would count actual changes
+
       // Simulate sync process
       await new Promise(resolve => setTimeout(resolve, 1000))
 
@@ -70,6 +84,16 @@ export function useOfflineSync(_userId: Id<'users'> | null) {
     }
   }, [connectionState])
 
+  // Force sync all data types
+  const forceSyncAll = useCallback(async () => {
+    await forceSync()
+  }, [forceSync])
+
+  // Increment offline changes counter
+  const incrementOfflineChanges = useCallback(() => {
+    setOfflineChanges(prev => prev + 1)
+  }, [])
+
   // Sync status object
   const status: SyncStatus = {
     connectionState,
@@ -82,5 +106,7 @@ export function useOfflineSync(_userId: Id<'users'> | null) {
   return {
     status,
     forceSync,
+    forceSyncAll,
+    incrementOfflineChanges,
   }
 }

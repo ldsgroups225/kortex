@@ -17,7 +17,6 @@ import { api } from '../../convex/_generated/api'
 import { useOfflineNotes } from '../lib/useOfflineNotes'
 import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
-import { OfflineStatus } from './OfflineStatus'
 import { RichTextEditor } from './RichTextEditor'
 import { SearchBar } from './SearchBar'
 import { TagBadge } from './TagBadge'
@@ -52,8 +51,8 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
     selectNote,
     searchNotes,
     getUserTags,
-    syncStatus,
-    forceSync,
+    syncStatus: _syncStatus,
+    forceSync: _forceSync,
   } = useOfflineNotes(loggedInUser?._id || null)
 
   // Auto-save functionality - using offline notes directly

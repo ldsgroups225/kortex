@@ -1,6 +1,7 @@
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { VitePWA } from 'vite-plugin-pwa'
 import topLevelAwait from 'vite-plugin-top-level-await'
 import wasm from 'vite-plugin-wasm'
 
@@ -10,6 +11,36 @@ export default defineConfig(({ mode }) => ({
     react(),
     wasm(),
     topLevelAwait(),
+    VitePWA({
+      registerType: 'prompt',
+      manifest: false, // use external manifest in public/
+      devOptions: { enabled: mode === 'development' },
+      workbox: {
+        navigateFallback: '/offline.html',
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/.*\.(?:js|css|png|svg|ico|woff2?)$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'static-assets', expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 } },
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/src/') || url.pathname.endsWith('.tsx'),
+            handler: 'NetworkFirst',
+            options: { cacheName: 'vite-modules' },
+          },
+          {
+            urlPattern: /^https:\/\/api\.convex\.cloud\/.*/, // Convex functions
+            handler: 'NetworkFirst',
+            options: { cacheName: 'convex-api', networkTimeoutSeconds: 5 },
+          },
+          {
+            urlPattern: /.*/,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'others' },
+          },
+        ],
+      },
+    }),
     // The code below enables dev tools like taking screenshots of your site
     // while it is being developed on chef.convex.dev.
     // Feel free to remove this code if you're no longer developing your app with Chef.

@@ -391,5 +391,38 @@
     "next": "Suivant",
     "skip": "Ignorer",
     "finish": "Terminer"
+  },
+  "sync": {
+    "online": "En ligne",
+    "offline": "Hors ligne",
+    "syncing": "Synchronisation",
+    "error": "Erreur de synchronisation",
+    "connected": "Connecté et synchronisé",
+    "workingOffline": "Travail hors ligne",
+    "lastSyncAt": "Dernière synchronisation à {{time}}",
+    "changesWaiting": "{{count}} modifications en attente de synchronisation",
+    "syncingChanges": "Synchronisation de {{count}} modifications",
+    "syncError": "Synchronisation échouée, nouvelle tentative automatique",
+    "pending": "en attente",
+    "retry": "Réessayer",
+    "offlineMode": "Mode hors ligne",
+    "onlineMode": "Mode en ligne",
+    "syncStatus": "État de synchronisation",
+    "forceSyncAll": "Forcer la synchronisation"
+  },
+  "pwa": {
+    "installApp": "Installer l'appli",
+    "installAppDesc": "Installez Kortex pour un accès rapide et des fonctionnalités hors ligne",
+    "install": "Installer",
+    "installing": "Installation...",
+    "appInstalled": "Appli installée",
+    "appReadyOffline": "Appli prête à fonctionner hors ligne",
+    "appReadyOfflineDesc": "Vous pouvez maintenant utiliser Kortex même sans connexion internet",
+    "updateAvailable": "Mise à jour disponible",
+    "updateAvailableDesc": "Une nouvelle version est prête. Cliquez sur recharger pour mettre à jour.",
+    "reload": "Recharger",
+    "swUpdated": "Appli mise à jour",
+    "swCached": "Mis en cache",
+    "swUpdateReady": "Mise à jour prête"
   }
 }

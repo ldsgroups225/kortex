@@ -12,7 +12,9 @@
     "lint:convex": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && convex dev --once && vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:pwa": "node scripts/test-pwa-offline.js",
+    "test:pwa:ci": "HEADLESS=true node scripts/test-pwa-offline.js"
   },
   "dependencies": {
     "@automerge/automerge": "^2.2.8",
@@ -52,8 +54,10 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
+    "lighthouse": "^12.8.1",
     "npm-run-all": "^4.1.5",
     "postcss": "~8.5.6",
+    "puppeteer": "^24.16.1",
     "tailwindcss": "~3.4.17",
     "typescript": "~5.7.3",
     "vite": "^6.3.5",

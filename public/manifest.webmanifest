@@ -1,0 +1,13 @@
+{
+  "name": "Kortex",
+  "short_name": "Kortex",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    { "src": "/kortex-logo.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

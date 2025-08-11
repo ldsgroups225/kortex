@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import { automergeUtils } from '../lib/automergeUtils'
+import { notifyAutomergeChanges, STORAGE_KEYS } from '../sw-helpers'
 
 export type TodoStatus = 'todo' | 'in_progress' | 'done'
 
@@ -38,6 +39,7 @@ export interface AutomergeTodo {
 
 export interface AutomergeTodosDocument {
   todos: Record<string, AutomergeTodo>
+  [key: string]: unknown // Add index signature to satisfy Record<string, unknown>
 }
 
 // Frontend todo type (matches what the component expects)
@@ -217,6 +219,24 @@ export function useOfflineTodos() {
     }
   }, [])
 
+  // Listen for sync-complete events from service worker
+  useEffect(() => {
+    const handleSyncComplete = () => {
+      // Reload data after sync completes
+      if (isOnline) {
+        console.warn('Sync completed, revalidating todos data')
+        // The sync handling is already done in the existing useEffect for convexTodos
+      }
+    }
+
+    // Listen for the sync-complete event from the service worker
+    window.addEventListener('kortex-sync-complete', handleSyncComplete)
+
+    return () => {
+      window.removeEventListener('kortex-sync-complete', handleSyncComplete)
+    }
+  }, [isOnline])
+
   // Save document to localStorage when it changes
   useEffect(() => {
     saveDocument(todosDoc)
@@ -363,7 +383,7 @@ export function useOfflineTodos() {
     }
 
     syncWithConvex()
-  }, [convexTodos, currentUser, isOnline, syncPendingChanges]) // Removed todosDoc from dependencies
+  }, [convexTodos, currentUser, isOnline, syncPendingChanges, todosDoc]) // Added todosDoc back to dependencies
 
   // Get todos organized by status
   const todos = useMemo(() => {
@@ -398,19 +418,22 @@ export function useOfflineTodos() {
   const syncStatus = useMemo(() => {
     const pending = allTodos.filter(t => t.syncStatus === 'pending' || t.isOfflineOnly).length
     const failed = allTodos.filter(t => t.syncStatus === 'failed').length
-    
+
     // Determine connection state
     let connectionState: 'online' | 'offline' | 'syncing' | 'error'
     if (!isOnline) {
       connectionState = 'offline'
-    } else if (syncInProgress) {
+    }
+    else if (syncInProgress) {
       connectionState = 'syncing'
-    } else if (failed > 0) {
+    }
+    else if (failed > 0) {
       connectionState = 'error'
-    } else {
+    }
+    else {
       connectionState = 'online'
     }
-    
+
     // Return SyncStatus compatible object
     return {
       connectionState,
@@ -422,7 +445,7 @@ export function useOfflineTodos() {
       // Keep legacy properties for backward compatibility
       pending,
       failed,
-      synced: allTodos.length - pending - failed
+      synced: allTodos.length - pending - failed,
     }
   }, [allTodos, isOnline, syncInProgress, lastSyncTime])
 
@@ -484,6 +507,15 @@ export function useOfflineTodos() {
       doc.todos[todoId] = newTodo
     }))
 
+    // Notify service worker of the new todo and increment offline changes counter
+    notifyAutomergeChanges(STORAGE_KEYS.TODOS, 'create', newTodo)
+
+    // Update offline changes count in sync status
+    const _currentPending = Object.values(todosDoc.todos).filter(t =>
+      t.syncStatus === 'pending' || t.isOfflineOnly,
+    ).length
+    // The count will be updated in the syncStatus useMemo
+
     // Show immediate feedback
     toast.success(isOnline ? 'Todo created' : 'Todo created offline', {
       description: isOnline ? 'Syncing to server...' : 'Will sync when online',
@@ -534,7 +566,7 @@ export function useOfflineTodos() {
     }
 
     return todoId
-  }, [currentUser, createTodoMutation, isOnline])
+  }, [currentUser, createTodoMutation, isOnline, todosDoc.todos]) // Added todosDoc.todos to dependencies
 
   // Update todo
   const updateTodo = useCallback(async (todoId: string, updates: {
@@ -595,6 +627,11 @@ export function useOfflineTodos() {
       }
     }))
 
+    // Notify service worker of the update and increment offline changes counter
+    notifyAutomergeChanges(STORAGE_KEYS.TODOS, 'update', { id: todoId, updates })
+
+    // The offline changes count is automatically updated via the syncStatus useMemo
+
     toast.success(isOnline ? 'Todo updated' : 'Todo updated offline', {
       description: isOnline ? 'Syncing to server...' : 'Will sync when online',
       duration: 2000,
@@ -653,6 +690,11 @@ export function useOfflineTodos() {
     setTodosDoc(current => Automerge.change(current, (doc) => {
       delete doc.todos[todoId]
     }))
+
+    // Notify service worker of the deletion and increment offline changes counter
+    notifyAutomergeChanges(STORAGE_KEYS.TODOS, 'delete', { id: todoId })
+
+    // The offline changes count is automatically updated via the syncStatus useMemo
 
     toast.success('Todo deleted', { duration: 2000 })
 

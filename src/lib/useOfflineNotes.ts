@@ -3,6 +3,7 @@ import { useMutation, useQuery } from 'convex/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
+import { queueSyncRequest } from '../sw-helpers'
 import { automergeUtils } from './automergeUtils'
 import { useOfflineSync } from './useOfflineSync'
 
@@ -95,7 +96,7 @@ export function useOfflineNotes(userId: Id<'users'> | null): UseOfflineNotesRetu
   }, [userId, storageKey])
 
   // Save notes to localStorage - avoid dependency on localNotes to prevent infinite loop
-  const saveToLocalRef = useRef<() => Promise<void>>()
+  const saveToLocalRef = useRef<() => Promise<void>>(async () => {})
   saveToLocalRef.current = async () => {
     if (!userId)
       return
@@ -122,6 +123,24 @@ export function useOfflineNotes(userId: Id<'users'> | null): UseOfflineNotesRetu
     }
   }, [isInitialized, userId, loadFromLocal])
 
+  // Listen for sync-complete events from service worker
+  useEffect(() => {
+    const handleSyncComplete = () => {
+      // Reload data from server after sync completes
+      if (isInitialized && offlineSync.status.connectionState === 'online') {
+        console.warn('Sync completed, revalidating notes data')
+        loadFromLocal()
+      }
+    }
+
+    // Listen for the sync-complete event from the service worker
+    window.addEventListener('kortex-sync-complete', handleSyncComplete)
+
+    return () => {
+      window.removeEventListener('kortex-sync-complete', handleSyncComplete)
+    }
+  }, [isInitialized, offlineSync.status.connectionState, loadFromLocal])
+
   // Auto-save to localStorage when localNotes changes
   useEffect(() => {
     if (isInitialized) {
@@ -129,53 +148,74 @@ export function useOfflineNotes(userId: Id<'users'> | null): UseOfflineNotesRetu
     }
   }, [localNotes, isInitialized]) // Remove saveToLocal from dependencies
 
-  // Sync Convex notes with local notes when they change
+  // Ref to store the last processed convex notes to detect changes
+  const lastProcessedConvexNotesRef = useRef<typeof convexNotes | null>(null)
+  const shouldSyncConvexNotesRef = useRef(false)
+
+  // Effect to detect when Convex notes should be synced
   useEffect(() => {
     if (isInitialized && convexNotes && offlineSync.status.connectionState === 'online') {
-      setLocalNotes(prevNotes => {
-        const newNotesMap = new Map<string, OfflineNote>(prevNotes)
-        
-        // Only update notes that came from Convex
-        convexNotes.forEach((convexNote) => {
-          const existingLocal = Array.from(prevNotes.values())
-            .find(note => note.convexId === convexNote._id)
+      // Check if convex notes have actually changed to avoid unnecessary re-syncing
+      if (lastProcessedConvexNotesRef.current !== convexNotes) {
+        shouldSyncConvexNotesRef.current = true
+        lastProcessedConvexNotesRef.current = convexNotes
+      }
+    }
+  }, [convexNotes, isInitialized, offlineSync.status.connectionState])
 
-          if (existingLocal) {
-            // Update existing local note with Convex data if Convex is newer
-            if (!existingLocal.lastSync || convexNote._creationTime > existingLocal.lastSync) {
-              newNotesMap.set(existingLocal._id, {
-                ...existingLocal,
+  // Sync Convex notes with local notes using an async function inside useEffect
+  useEffect(() => {
+    if (shouldSyncConvexNotesRef.current && isInitialized && convexNotes && offlineSync.status.connectionState === 'online') {
+      shouldSyncConvexNotesRef.current = false
+
+      const syncConvexNotes = async () => {
+        setLocalNotes((prevNotes) => {
+          const newNotesMap = new Map<string, OfflineNote>(prevNotes)
+
+          // Only update notes that came from Convex
+          convexNotes.forEach((convexNote) => {
+            const existingLocal = Array.from(prevNotes.values())
+              .find(note => note.convexId === convexNote._id)
+
+            if (existingLocal) {
+              // Update existing local note with Convex data if Convex is newer
+              if (!existingLocal.lastSync || convexNote._creationTime > existingLocal.lastSync) {
+                newNotesMap.set(existingLocal._id, {
+                  ...existingLocal,
+                  title: convexNote.title,
+                  content: convexNote.content,
+                  tags: convexNote.tags,
+                  pinned: convexNote.pinned,
+                  updatedAt: convexNote._creationTime,
+                  lastSync: Date.now(),
+                  hasLocalChanges: false,
+                })
+              }
+            }
+            else {
+              // Create new local note from Convex data
+              const newLocalNote: OfflineNote = {
+                _id: automergeUtils.generateId(),
+                convexId: convexNote._id,
                 title: convexNote.title,
                 content: convexNote.content,
                 tags: convexNote.tags,
                 pinned: convexNote.pinned,
+                createdAt: convexNote._creationTime,
                 updatedAt: convexNote._creationTime,
                 lastSync: Date.now(),
+                isLocal: false,
                 hasLocalChanges: false,
-              })
+              }
+              newNotesMap.set(newLocalNote._id, newLocalNote)
             }
-          }
-          else {
-            // Create new local note from Convex data
-            const newLocalNote: OfflineNote = {
-              _id: automergeUtils.generateId(),
-              convexId: convexNote._id,
-              title: convexNote.title,
-              content: convexNote.content,
-              tags: convexNote.tags,
-              pinned: convexNote.pinned,
-              createdAt: convexNote._creationTime,
-              updatedAt: convexNote._creationTime,
-              lastSync: Date.now(),
-              isLocal: false,
-              hasLocalChanges: false,
-            }
-            newNotesMap.set(newLocalNote._id, newLocalNote)
-          }
+          })
+
+          return newNotesMap
         })
-        
-        return newNotesMap
-      })
+      }
+
+      syncConvexNotes()
     }
   }, [convexNotes, isInitialized, offlineSync.status.connectionState])
 
@@ -236,6 +276,12 @@ export function useOfflineNotes(userId: Id<'users'> | null): UseOfflineNotesRetu
 
     setLocalNotes(prev => new Map(prev.set(noteId, newNote)))
 
+    // Increment offline changes counter
+    offlineSync.incrementOfflineChanges()
+
+    // Queue sync request for background processing
+    queueSyncRequest('notes')
+
     // Try to sync to Convex if online
     if (offlineSync.status.connectionState === 'online') {
       try {
@@ -266,7 +312,7 @@ export function useOfflineNotes(userId: Id<'users'> | null): UseOfflineNotesRetu
     }
 
     return noteId
-  }, [offlineSync.status.connectionState, convexCreateNote])
+  }, [offlineSync, convexCreateNote])
 
   // Update note
   const updateNote = useCallback(async (noteId: string, updates: Partial<OfflineNote>) => {
@@ -283,6 +329,12 @@ export function useOfflineNotes(userId: Id<'users'> | null): UseOfflineNotesRetu
     }
 
     setLocalNotes(prev => new Map(prev.set(noteId, updatedNote)))
+
+    // Increment offline changes counter
+    offlineSync.incrementOfflineChanges()
+
+    // Queue sync request for background processing
+    queueSyncRequest('notes')
 
     // Try to sync to Convex if online and note has convexId
     if (offlineSync.status.connectionState === 'online' && existingNote.convexId) {
@@ -306,7 +358,7 @@ export function useOfflineNotes(userId: Id<'users'> | null): UseOfflineNotesRetu
         toast.warning('Changes saved offline (will sync when online)')
       }
     }
-  }, [localNotes, offlineSync.status.connectionState, convexUpdateNote])
+  }, [localNotes, offlineSync, convexUpdateNote]) // Removed offlineSync.status.connectionState as it's not needed
 
   // Delete note
   const deleteNote = useCallback(async (noteId: string) => {
@@ -321,6 +373,12 @@ export function useOfflineNotes(userId: Id<'users'> | null): UseOfflineNotesRetu
       newMap.delete(noteId)
       return newMap
     })
+
+    // Increment offline changes counter
+    offlineSync.incrementOfflineChanges()
+
+    // Queue sync request for background processing
+    queueSyncRequest('notes')
 
     // Clear selection if this was the selected note
     if (selectedNoteId === noteId) {
@@ -341,7 +399,7 @@ export function useOfflineNotes(userId: Id<'users'> | null): UseOfflineNotesRetu
     else {
       toast.info('Note deleted locally (will sync when online)')
     }
-  }, [localNotes, selectedNoteId, offlineSync.status.connectionState, convexDeleteNote])
+  }, [localNotes, selectedNoteId, offlineSync, convexDeleteNote]) // Removed offlineSync.status.connectionState as it's not needed
 
   // Toggle pin
   const togglePin = useCallback(async (noteId: string) => {
@@ -378,7 +436,7 @@ export function useOfflineNotes(userId: Id<'users'> | null): UseOfflineNotesRetu
         toast.warning('Pin status changed offline (will sync when online)')
       }
     }
-  }, [localNotes, offlineSync.status.connectionState, convexTogglePin])
+  }, [localNotes, offlineSync, convexTogglePin]) // Removed offlineSync.status.connectionState as it's not needed
 
   // Select note
   const selectNote = useCallback((noteId: string | null) => {

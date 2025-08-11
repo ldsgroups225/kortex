@@ -3,6 +3,7 @@ import { useMutation, useQuery } from 'convex/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
+import { queueSyncRequest } from '../sw-helpers'
 import { automergeUtils } from './automergeUtils'
 import { useOfflineSync } from './useOfflineSync'
 
@@ -97,7 +98,7 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
   }, [userId, storageKey])
 
   // Save snippets to localStorage - avoid dependency on localSnippets to prevent infinite loop
-  const saveToLocalRef = useRef<() => Promise<void>>()
+  const saveToLocalRef = useRef<() => Promise<void>>(async () => {})
   saveToLocalRef.current = async () => {
     if (!userId)
       return
@@ -124,6 +125,24 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
     }
   }, [isInitialized, userId, loadFromLocal])
 
+  // Listen for sync-complete events from service worker
+  useEffect(() => {
+    const handleSyncComplete = () => {
+      // Reload data from server after sync completes
+      if (isInitialized && offlineSync.status.connectionState === 'online') {
+        console.warn('Sync completed, revalidating snippets data')
+        loadFromLocal()
+      }
+    }
+
+    // Listen for the sync-complete event from the service worker
+    window.addEventListener('kortex-sync-complete', handleSyncComplete)
+
+    return () => {
+      window.removeEventListener('kortex-sync-complete', handleSyncComplete)
+    }
+  }, [isInitialized, offlineSync.status.connectionState, loadFromLocal])
+
   // Auto-save to localStorage when localSnippets changes
   useEffect(() => {
     if (isInitialized) {
@@ -131,55 +150,76 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
     }
   }, [localSnippets, isInitialized]) // Remove saveToLocal from dependencies
 
-  // Sync Convex snippets with local snippets when they change
+  // Ref to store the last processed convex snippets to detect changes
+  const lastProcessedConvexSnippetsRef = useRef<typeof convexSnippets | null>(null)
+  const shouldSyncConvexSnippetsRef = useRef(false)
+
+  // Effect to detect when Convex snippets should be synced
   useEffect(() => {
     if (isInitialized && convexSnippets && offlineSync.status.connectionState === 'online') {
-      setLocalSnippets(prevSnippets => {
-        const newSnippetsMap = new Map<string, OfflineSnippet>(prevSnippets)
-        
-        // Only update snippets that came from Convex
-        convexSnippets.forEach((convexSnippet) => {
-          const existingLocal = Array.from(prevSnippets.values())
-            .find(snippet => snippet.convexId === convexSnippet._id)
+      // Check if convex snippets have actually changed to avoid unnecessary re-syncing
+      if (lastProcessedConvexSnippetsRef.current !== convexSnippets) {
+        shouldSyncConvexSnippetsRef.current = true
+        lastProcessedConvexSnippetsRef.current = convexSnippets
+      }
+    }
+  }, [convexSnippets, isInitialized, offlineSync.status.connectionState])
 
-          if (existingLocal) {
-            // Update existing local snippet with Convex data if Convex is newer
-            if (!existingLocal.lastSync || convexSnippet._creationTime > existingLocal.lastSync) {
-              newSnippetsMap.set(existingLocal._id, {
-                ...existingLocal,
+  // Sync Convex snippets with local snippets using an async function inside useEffect
+  useEffect(() => {
+    if (shouldSyncConvexSnippetsRef.current && isInitialized && convexSnippets && offlineSync.status.connectionState === 'online') {
+      shouldSyncConvexSnippetsRef.current = false
+
+      const syncConvexSnippets = async () => {
+        setLocalSnippets((prevSnippets) => {
+          const newSnippetsMap = new Map<string, OfflineSnippet>(prevSnippets)
+
+          // Only update snippets that came from Convex
+          convexSnippets.forEach((convexSnippet) => {
+            const existingLocal = Array.from(prevSnippets.values())
+              .find(snippet => snippet.convexId === convexSnippet._id)
+
+            if (existingLocal) {
+              // Update existing local snippet with Convex data if Convex is newer
+              if (!existingLocal.lastSync || convexSnippet._creationTime > existingLocal.lastSync) {
+                newSnippetsMap.set(existingLocal._id, {
+                  ...existingLocal,
+                  title: convexSnippet.title,
+                  content: convexSnippet.content,
+                  language: convexSnippet.language,
+                  category: convexSnippet.category,
+                  pinned: convexSnippet.pinned,
+                  updatedAt: convexSnippet._creationTime,
+                  lastSync: Date.now(),
+                  hasLocalChanges: false,
+                })
+              }
+            }
+            else {
+              // Create new local snippet from Convex data
+              const newLocalSnippet: OfflineSnippet = {
+                _id: automergeUtils.generateId(),
+                convexId: convexSnippet._id,
                 title: convexSnippet.title,
                 content: convexSnippet.content,
                 language: convexSnippet.language,
                 category: convexSnippet.category,
                 pinned: convexSnippet.pinned,
+                createdAt: convexSnippet._creationTime,
                 updatedAt: convexSnippet._creationTime,
                 lastSync: Date.now(),
+                isLocal: false,
                 hasLocalChanges: false,
-              })
+              }
+              newSnippetsMap.set(newLocalSnippet._id, newLocalSnippet)
             }
-          }
-          else {
-            // Create new local snippet from Convex data
-            const newLocalSnippet: OfflineSnippet = {
-              _id: automergeUtils.generateId(),
-              convexId: convexSnippet._id,
-              title: convexSnippet.title,
-              content: convexSnippet.content,
-              language: convexSnippet.language,
-              category: convexSnippet.category,
-              pinned: convexSnippet.pinned,
-              createdAt: convexSnippet._creationTime,
-              updatedAt: convexSnippet._creationTime,
-              lastSync: Date.now(),
-              isLocal: false,
-              hasLocalChanges: false,
-            }
-            newSnippetsMap.set(newLocalSnippet._id, newLocalSnippet)
-          }
+          })
+
+          return newSnippetsMap
         })
-        
-        return newSnippetsMap
-      })
+      }
+
+      syncConvexSnippets()
     }
   }, [convexSnippets, isInitialized, offlineSync.status.connectionState])
 
@@ -248,6 +288,12 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
 
     setLocalSnippets(prev => new Map(prev.set(snippetId, newSnippet)))
 
+    // Increment offline changes counter
+    offlineSync.incrementOfflineChanges()
+
+    // Queue sync request for background processing
+    queueSyncRequest('snippets')
+
     // Try to sync to Convex if online
     if (offlineSync.status.connectionState === 'online') {
       try {
@@ -279,7 +325,7 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
     }
 
     return snippetId
-  }, [offlineSync.status.connectionState, convexCreateSnippet])
+  }, [offlineSync, convexCreateSnippet]) // Removed offlineSync.status.connectionState as it's not needed
 
   // Update snippet
   const updateSnippet = useCallback(async (snippetId: string, updates: Partial<OfflineSnippet>) => {
@@ -296,6 +342,12 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
     }
 
     setLocalSnippets(prev => new Map(prev.set(snippetId, updatedSnippet)))
+
+    // Increment offline changes counter
+    offlineSync.incrementOfflineChanges()
+
+    // Queue sync request for background processing
+    queueSyncRequest('snippets')
 
     // Try to sync to Convex if online and snippet has convexId
     if (offlineSync.status.connectionState === 'online' && existingSnippet.convexId) {
@@ -320,7 +372,7 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
         toast.warning('Changes saved offline (will sync when online)')
       }
     }
-  }, [localSnippets, offlineSync.status.connectionState, convexUpdateSnippet])
+  }, [localSnippets, offlineSync, convexUpdateSnippet]) // Removed offlineSync.status.connectionState as it's not needed
 
   // Delete snippet
   const deleteSnippet = useCallback(async (snippetId: string) => {
@@ -335,6 +387,12 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
       newMap.delete(snippetId)
       return newMap
     })
+
+    // Increment offline changes counter
+    offlineSync.incrementOfflineChanges()
+
+    // Queue sync request for background processing
+    queueSyncRequest('snippets')
 
     // Clear selection if this was the selected snippet
     if (selectedSnippetId === snippetId) {
@@ -355,7 +413,7 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
     else {
       toast.info('Snippet deleted locally (will sync when online)')
     }
-  }, [localSnippets, selectedSnippetId, offlineSync.status.connectionState, convexDeleteSnippet])
+  }, [localSnippets, selectedSnippetId, offlineSync, convexDeleteSnippet]) // Removed offlineSync.status.connectionState as it's not needed
 
   // Toggle pin
   const togglePin = useCallback(async (snippetId: string) => {
@@ -392,7 +450,7 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
         toast.warning('Pin status changed offline (will sync when online)')
       }
     }
-  }, [localSnippets, offlineSync.status.connectionState, convexTogglePin])
+  }, [localSnippets, offlineSync, convexTogglePin]) // Removed offlineSync.status.connectionState as it's not needed
 
   // Select snippet
   const selectSnippet = useCallback((snippetId: string | null) => {
@@ -406,7 +464,7 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
 
   // Force sync
   const forceSync = useCallback(async () => {
-    await offlineSync.forceSync()
+    await offlineSync.forceSyncAll()
 
     // Additional snippet-specific sync logic
     const unsyncedSnippets = Array.from(localSnippets.values()).filter(snippet => snippet.hasLocalChanges)

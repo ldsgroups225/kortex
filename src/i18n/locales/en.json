@@ -409,5 +409,20 @@
     "onlineMode": "Online Mode",
     "syncStatus": "Sync Status",
     "forceSyncAll": "Force Sync All"
+  },
+  "pwa": {
+    "installApp": "Install App",
+    "installAppDesc": "Install Kortex for quick access and offline functionality",
+    "install": "Install",
+    "installing": "Installing...",
+    "appInstalled": "App Installed",
+    "appReadyOffline": "App ready to work offline",
+    "appReadyOfflineDesc": "You can now use Kortex even without an internet connection",
+    "updateAvailable": "Update Available",
+    "updateAvailableDesc": "A new version is ready. Click reload to update.",
+    "reload": "Reload",
+    "swUpdated": "App Updated",
+    "swCached": "Cached",
+    "swUpdateReady": "Update Ready"
   }
 }

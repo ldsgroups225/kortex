@@ -21,7 +21,6 @@ import { api } from '../../convex/_generated/api'
 import { useOfflineTodos } from '../hooks/useOfflineTodos'
 import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
-import { OfflineStatus } from './OfflineStatus'
 import { PomodoroTimer } from './PomodoroTimer'
 import { SearchBar } from './SearchBar'
 import { TagInput } from './TagInput'
@@ -494,8 +493,8 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     updateTodo: updateOfflineTodo,
     deleteTodo: deleteOfflineTodo,
     toggleTodoStatus: toggleOfflineTodoStatus,
-    syncStatus,
-    forceSyncAll: forceSync,
+    syncStatus: _syncStatus,
+    forceSyncAll: _forceSync,
   } = useOfflineTodos()
 
   // Still get users for UserSelector component
