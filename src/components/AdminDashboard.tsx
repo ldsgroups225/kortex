@@ -23,11 +23,11 @@ export function AdminDashboard() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   // Queries
-  const analytics = useQuery(api.admin.getAdminAnalytics)
-  const notes = useQuery(api.admin.getNotesForModeration, { searchQuery })
-  const snippets = useQuery(api.admin.getSnippetsForModeration, { searchQuery })
-  const todos = useQuery(api.admin.getTodosForModeration, { searchQuery })
-  const logs = useQuery(api.admin.getSystemLogs, { limit: 50 })
+  const analytics = useQuery(api.admin.getAdminAnalytics, undefined, { skip: activeTab !== 'analytics' })
+  const notes = useQuery(api.admin.getNotesForModeration, { searchQuery }, { skip: activeTab !== 'content' || contentType !== 'notes' })
+  const snippets = useQuery(api.admin.getSnippetsForModeration, { searchQuery }, { skip: activeTab !== 'content' || contentType !== 'snippets' })
+  const todos = useQuery(api.admin.getTodosForModeration, { searchQuery }, { skip: activeTab !== 'content' || contentType !== 'todos' })
+  const logs = useQuery(api.admin.getSystemLogs, { limit: 50 }, { skip: activeTab !== 'logs' })
 
   // Mutations
   const deleteContent = useMutation(api.admin.deleteContent)

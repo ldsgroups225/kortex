@@ -108,6 +108,7 @@ const applicationTables = {
     dueDate: v.optional(v.number()),
     createdAt: v.optional(v.number()),
     updatedAt: v.optional(v.number()),
+    involvedUsers: v.array(v.id('users')),
   })
     .index('by_user', ['userId'])
     .index('by_user_and_status', ['userId', 'status'])
@@ -115,6 +116,7 @@ const applicationTables = {
     .index('by_assigned_user_and_status', ['assignedToUserId', 'status'])
     .index('by_status', ['status'])
     .index('by_created_at', ['createdAt'])
+    .index('by_involved_users', ['involvedUsers'])
     .searchIndex('search_title', {
       searchField: 'title',
       filterFields: ['userId'],
@@ -143,6 +145,11 @@ const applicationTables = {
     .index('by_timestamp', ['timestamp'])
     .index('by_user', ['userId'])
     .index('by_action', ['action']),
+
+  stats: defineTable({
+    name: v.string(),
+    count: v.number(),
+  }).index('by_name', ['name']),
 }
 
 export default defineSchema({
