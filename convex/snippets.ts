@@ -135,6 +135,18 @@ export const createSnippet = mutation({
       updatedAt: now,
     })
 
+    // Update stats
+    const counter = await ctx.db
+      .query('stats')
+      .withIndex('by_name', q => q.eq('name', 'totalSnippets'))
+      .first()
+    if (counter) {
+      await ctx.db.patch(counter._id, { count: counter.count + 1 })
+    }
+    else {
+      await ctx.db.insert('stats', { name: 'totalSnippets', count: 1 })
+    }
+
     return snippetId
   },
 })
@@ -208,6 +220,16 @@ export const deleteSnippet = mutation({
     }
 
     await ctx.db.delete(args.snippetId)
+
+    // Update stats
+    const counter = await ctx.db
+      .query('stats')
+      .withIndex('by_name', q => q.eq('name', 'totalSnippets'))
+      .first()
+    if (counter) {
+      await ctx.db.patch(counter._id, { count: counter.count - 1 })
+    }
+
     return args.snippetId
   },
 })

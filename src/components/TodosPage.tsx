@@ -13,12 +13,11 @@ import {
   TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
-import { useQuery } from 'convex/react'
+import { useMutation, usePaginatedQuery, useQuery } from 'convex/react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
-import { useOfflineTodos } from '../hooks/useOfflineTodos'
 import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
 import { PomodoroTimer } from './PomodoroTimer'
@@ -178,7 +177,7 @@ function TodoCard({
                 <button
                   type="button"
                   onClick={() => {
-                    void toggleOfflineTodoStatus(todo._id)
+                    void toggleTodoStatus({ id: todo._id as Id<'todos'> })
                   }}
                   className={`flex-shrink-0 w-5 h-5 rounded border-2 transition-all duration-200 ${todo.status === 'done'
                     ? 'bg-green-500 border-green-500 text-white'
@@ -486,16 +485,20 @@ interface TodosPageProps {
 export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps = {}) {
   const { t } = useTranslation()
 
-  // Use offline-first todos hook
+  // Use paginated query for online-first todos
   const {
-    todos: offlineTodos,
-    createTodo: createOfflineTodo,
-    updateTodo: updateOfflineTodo,
-    deleteTodo: deleteOfflineTodo,
-    toggleTodoStatus: toggleOfflineTodoStatus,
-    syncStatus: _syncStatus,
-    forceSyncAll: _forceSync,
-  } = useOfflineTodos()
+    results: todos,
+    status: paginationStatus,
+    loadMore,
+  } = usePaginatedQuery(
+    api.todos.getTodos,
+    {},
+    { initialNumItems: 20 },
+  )
+  const createTodo = useMutation(api.todos.createTodo)
+  const updateTodo = useMutation(api.todos.updateTodo)
+  const deleteTodo = useMutation(api.todos.deleteTodo)
+  const toggleTodoStatus = useMutation(api.todos.toggleTodoStatus)
 
   // Still get users for UserSelector component
   const users = useQuery(api.users.getUsers)
@@ -533,42 +536,31 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     }
   }, [])
 
-  // Filter and search logic with offline todos
+  // Filter and search logic with online todos
   const getFilteredTodos = () => {
-    const todosToFilter = offlineTodos
-
-    let filteredTodos = todosToFilter
+    let filtered = todos || []
 
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
-      filteredTodos = {
-        todo: todosToFilter.todo.filter(todo =>
-          todo.title.toLowerCase().includes(query)
-          || (todo.description && todo.description.toLowerCase().includes(query)),
-        ),
-        inProgress: todosToFilter.inProgress.filter(todo =>
-          todo.title.toLowerCase().includes(query)
-          || (todo.description && todo.description.toLowerCase().includes(query)),
-        ),
-        done: todosToFilter.done.filter(todo =>
-          todo.title.toLowerCase().includes(query)
-          || (todo.description && todo.description.toLowerCase().includes(query)),
-        ),
-      }
+      filtered = filtered.filter(todo =>
+        todo.title.toLowerCase().includes(query)
+        || (todo.description && todo.description.toLowerCase().includes(query)),
+      )
     }
 
     // Apply status filter
     if (activeFilters.status) {
       const status = activeFilters.status as TodoStatus
-      filteredTodos = {
-        todo: status === 'todo' ? filteredTodos.todo : [],
-        inProgress: status === 'in_progress' ? filteredTodos.inProgress : [],
-        done: status === 'done' ? filteredTodos.done : [],
-      }
+      filtered = filtered.filter(todo => todo.status === status)
     }
 
-    return filteredTodos
+    // Group by status
+    return {
+      todo: filtered.filter(t => t.status === 'todo'),
+      inProgress: filtered.filter(t => t.status === 'in_progress'),
+      done: filtered.filter(t => t.status === 'done'),
+    }
   }
 
   const filteredTodos = getFilteredTodos()
@@ -620,7 +612,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
         createData.assignedToUserId = newTodoAssignedTo
       }
 
-      await createOfflineTodo(createData)
+      await createTodo(createData)
 
       setNewTodoTitle('')
       setNewTodoTags([])
@@ -668,7 +660,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     setEditingTodo(null)
 
     try {
-      await updateOfflineTodo(editingTodo as string, updates)
+      await updateTodo({ id: editingTodo, ...updates })
     }
     catch (error) {
       console.error('Failed to update todo:', error)
@@ -677,7 +669,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
 
   const handleDeleteTodo = async (id: Id<'todos'> | string) => {
     try {
-      await deleteOfflineTodo(id as string)
+      await deleteTodo({ id: id as Id<'todos'> })
     }
     catch (error) {
       console.error('Failed to delete todo:', error)
@@ -710,7 +702,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     setDragOverStatus(null)
 
     try {
-      await updateOfflineTodo(todoId as string, { status })
+      await updateTodo({ id: todoId as Id<'todos'>, status })
       toast.success(t('toasts.todoMoved'), {
         description: t('toasts.todoMovedDesc', { status: statusLabels[status] }),
       })
@@ -768,10 +760,10 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
   }
 
   // Show loading only on initial load
-  if (!offlineTodos || (offlineTodos.todo.length === 0 && offlineTodos.inProgress.length === 0 && offlineTodos.done.length === 0)) {
+  if (paginationStatus === 'LoadingInitial') {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white" />
       </div>
     )
   }
@@ -1116,7 +1108,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               setEditDueDate={setEditDueDate}
               handleSaveEdit={handleSaveEdit}
               setEditingTodo={setEditingTodo}
-              toggleTodoStatus={toggleOfflineTodoStatus}
+              toggleTodoStatus={toggleTodoStatus}
               handleEditTodo={handleEditTodo}
               handleDeleteTodo={handleDeleteTodo}
               handleDragStart={handleDragStart}
@@ -1147,7 +1139,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               setEditDueDate={setEditDueDate}
               handleSaveEdit={handleSaveEdit}
               setEditingTodo={setEditingTodo}
-              toggleTodoStatus={toggleOfflineTodoStatus}
+              toggleTodoStatus={toggleTodoStatus}
               handleEditTodo={handleEditTodo}
               handleDeleteTodo={handleDeleteTodo}
               handleDragStart={handleDragStart}
@@ -1182,7 +1174,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               setEditDueDate={setEditDueDate}
               handleSaveEdit={handleSaveEdit}
               setEditingTodo={setEditingTodo}
-              toggleTodoStatus={toggleOfflineTodoStatus}
+              toggleTodoStatus={toggleTodoStatus}
               handleEditTodo={handleEditTodo}
               handleDeleteTodo={handleDeleteTodo}
               handleDragStart={handleDragStart}
@@ -1198,6 +1190,23 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               currentUser={currentUser}
             />
           </div>
+
+          {paginationStatus === 'CanLoadMore' && (
+            <div className="text-center mt-4">
+              <button
+                type="button"
+                onClick={() => loadMore(10)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                {t('common.loadMore')}
+              </button>
+            </div>
+          )}
+          {paginationStatus === 'LoadingMore' && (
+            <div className="text-center mt-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white mx-auto" />
+            </div>
+          )}
         </div>
       </div>
     </div>
