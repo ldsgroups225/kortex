@@ -53,7 +53,7 @@ class PWAOfflineTestSuite {
 
     // Start the server
     const { exec: execDynamic } = await import('node:child_process')
-    this.serverProcess = execDynamic('bunx serve dist -s -p 3000')
+    this.serverProcess = execDynamic('vite preview --port 3000')
 
     // Wait for server to be ready
     await this.waitForServer()
@@ -78,7 +78,7 @@ class PWAOfflineTestSuite {
   async setupBrowser() {
     this.log('Setting up browser...')
     this.browser = await puppeteer.launch({
-      headless: false, // Set to true for CI environments
+      headless: true, // Set to true for CI environments
       devtools: false,
       args: [
         '--no-sandbox',
@@ -109,7 +109,7 @@ class PWAOfflineTestSuite {
     await this.page.goto(SERVER_URL, { waitUntil: 'networkidle2' })
 
     // Wait for service worker to register
-    await this.page.waitForTimeout(3000)
+    await new Promise(resolve => setTimeout(resolve, 3000))
 
     const swRegistered = await this.page.evaluate(() => {
       return navigator.serviceWorker.controller !== null
@@ -129,7 +129,7 @@ class PWAOfflineTestSuite {
 
     for (const route of routes) {
       await this.page.goto(`${SERVER_URL}${route}`, { waitUntil: 'networkidle2' })
-      await this.page.waitForTimeout(1000)
+      await new Promise(resolve => setTimeout(resolve, 1000))
     }
 
     this.log('Routes cached, testing offline access...')
@@ -279,7 +279,7 @@ class PWAOfflineTestSuite {
       await this.page.setOfflineMode(false)
 
       // Wait a bit for background sync to potentially trigger
-      await this.page.waitForTimeout(5000)
+      await new Promise(resolve => setTimeout(resolve, 5000))
 
       // For now, we'll just check if the sync registration succeeded
       // In a real app, you'd check if the queued data was actually synced
