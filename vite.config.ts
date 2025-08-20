@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => ({
       manifest: false, // use external manifest in public/
       devOptions: { enabled: mode === 'development' },
       workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         navigateFallback: '/offline.html',
         runtimeCaching: [
           {
