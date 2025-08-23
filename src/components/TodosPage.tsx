@@ -1055,7 +1055,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
                           setEditDueDate={setEditDueDate}
                           handleSaveEdit={handleSaveEdit}
                           setEditingTodo={setEditingTodo}
-                          toggleTodoStatus={toggleOfflineTodoStatus}
+                          toggleTodoStatus={toggleTodoStatus}
                           handleEditTodo={handleEditTodo}
                           handleDeleteTodo={handleDeleteTodo}
                           handleDragStart={handleDragStart}
