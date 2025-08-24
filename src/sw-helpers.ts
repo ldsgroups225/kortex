@@ -47,28 +47,12 @@ export const STORAGE_KEYS = {
  */
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) {
-    console.warn('Service workers are not supported in this browser')
     return null
   }
 
   try {
     const registration = await navigator.serviceWorker.register('/sw.js', {
       scope: '/',
-    })
-
-    console.warn('Service Worker registered successfully:', registration.scope)
-
-    // Listen for service worker updates
-    registration.addEventListener('updatefound', () => {
-      const newWorker = registration.installing
-      if (newWorker) {
-        console.warn('New service worker installing')
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            console.warn('New service worker installed, page refresh may be needed')
-          }
-        })
-      }
     })
 
     return registration
@@ -84,7 +68,6 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
  */
 export function postMessageToServiceWorker(message: SyncMessage): void {
   if (!navigator.serviceWorker.controller) {
-    console.warn('No service worker controller available')
     return
   }
 
@@ -174,12 +157,10 @@ export async function registerBackgroundSync(tag: string = 'kortex-sync'): Promi
     const registration = await navigator.serviceWorker.ready as ServiceWorkerRegistrationWithSync
 
     if (!('sync' in registration)) {
-      console.warn('Background Sync is not supported')
       return false
     }
 
     await registration.sync.register(tag)
-    console.warn(`Background sync registered with tag: ${tag}`)
     return true
   }
   catch (error) {
@@ -212,7 +193,6 @@ export function clearCompletedSyncRequests(): void {
     // Clear the entire queue - in a more sophisticated implementation,
     // you might want to only remove confirmed completed requests
     localStorage.setItem(queueKey, '[]')
-    console.warn('Sync queue cleared')
   }
   catch (error) {
     console.error('Failed to clear sync queue:', error)
@@ -260,7 +240,6 @@ export function setupServiceWorkerListeners(): void {
     switch (type) {
       case 'sync-complete':
       case 'SYNC_RESPONSE':
-        console.warn('Sync completed:', payload)
         updateLastSyncTime(payload.timestamp)
 
         // Dispatch custom event for components to listen to
@@ -279,17 +258,13 @@ export function setupServiceWorkerListeners(): void {
         break
 
       default:
-        console.warn('Unhandled service worker message:', event.data)
     }
   })
 
   // Listen for service worker state changes
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    console.warn('Service worker controller changed')
-
     // Retry any pending sync requests with new controller
     if (hasPendingSyncRequests()) {
-      console.warn('Retrying pending sync requests with new service worker')
       // In a real implementation, you might want to re-queue or retry pending syncs
     }
   })
@@ -315,7 +290,6 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   try {
     // Request permission
     const permission = await Notification.requestPermission()
-    console.warn('Notification permission result:', permission)
     return permission
   }
   catch (error) {
@@ -338,8 +312,6 @@ export async function initializeServiceWorkerHelpers(): Promise<void> {
 
     // Register background sync
     await registerBackgroundSync()
-
-    console.warn('Service worker helpers initialized successfully')
   }
   catch (error) {
     console.error('Failed to initialize service worker helpers:', error)

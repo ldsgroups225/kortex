@@ -11,24 +11,26 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { Authenticated, Unauthenticated, useMutation, useQuery } from 'convex/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Toaster } from 'sonner'
 import { api } from '../convex/_generated/api'
-import { AdminDashboard } from './components/AdminDashboard'
 import { KeyboardShortcuts } from './components/KeyboardShortcuts'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
-import { NotesPage } from './components/NotesPage'
 import { OfflineStatus, OfflineStatusIndicator, PwaStatusBadge } from './components/OfflineStatus'
 import { OnboardingProvider } from './components/OnboardingProvider'
 import { OnboardingTooltip } from './components/OnboardingTooltip'
+
 import { PwaInstallButton, PwaInstallPrompt } from './components/PwaInstallPrompt'
-import { SettingsPage } from './components/SettingsPage'
-import { SnippetsPage } from './components/SnippetsPage'
-import { TodosPage } from './components/TodosPage'
 import { useOfflineSync } from './lib/useOfflineSync'
 import { SignInForm } from './SignInForm'
 import { SignOutButton } from './SignOutButton'
+
+const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
+const NotesPage = lazy(() => import('./components/NotesPage').then(m => ({ default: m.NotesPage })))
+const SettingsPage = lazy(() => import('./components/SettingsPage').then(m => ({ default: m.SettingsPage })))
+const SnippetsPage = lazy(() => import('./components/SnippetsPage').then(m => ({ default: m.SnippetsPage })))
+const TodosPage = lazy(() => import('./components/TodosPage').then(m => ({ default: m.TodosPage })))
 
 type Route = 'dashboard' | 'notes' | 'snippets' | 'todos' | 'settings' | 'admin'
 
@@ -279,7 +281,9 @@ function AuthenticatedApp({
 
         {/* Notes page content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <NotesPage sidebarOpen={false} setSidebarOpen={() => setSidebarOpen(true)} />
+          <Suspense fallback={<LoadingSpinner />}>
+            <NotesPage sidebarOpen={false} setSidebarOpen={() => setSidebarOpen(true)} />
+          </Suspense>
         </div>
       </div>
     )
@@ -308,7 +312,9 @@ function AuthenticatedApp({
 
         {/* Todos page content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <TodosPage sidebarOpen={false} setSidebarOpen={() => setSidebarOpen(true)} />
+          <Suspense fallback={<LoadingSpinner />}>
+            <TodosPage sidebarOpen={false} setSidebarOpen={() => setSidebarOpen(true)} />
+          </Suspense>
         </div>
       </div>
     )
@@ -378,7 +384,7 @@ function AuthenticatedApp({
           <div className="border-t border-border dark:border-border-dark p-4">
             <OfflineStatus
               status={offlineSync.status}
-              onForceSync={offlineSync.forceSyncAll}
+              onForcSync={offlineSync.forceSyncAll}
               className="mb-4"
             />
           </div>
@@ -557,21 +563,50 @@ function UnauthenticatedApp({ darkMode, toggleDarkMode }: { darkMode: boolean, t
   )
 }
 
+// Loading component for lazy-loaded routes
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
+  )
+}
+
 function RouteContent({ route }: { route: Route }) {
   const content = () => {
     switch (route) {
       case 'dashboard':
         return <DashboardPage />
       case 'notes':
-        return <NotesPage />
+        return (
+          <Suspense fallback={<LoadingSpinner />}>
+            <NotesPage />
+          </Suspense>
+        )
       case 'snippets':
-        return <SnippetsPage />
+        return (
+          <Suspense fallback={<LoadingSpinner />}>
+            <SnippetsPage />
+          </Suspense>
+        )
       case 'todos':
-        return <TodosPage />
+        return (
+          <Suspense fallback={<LoadingSpinner />}>
+            <TodosPage />
+          </Suspense>
+        )
       case 'settings':
-        return <SettingsPage />
+        return (
+          <Suspense fallback={<LoadingSpinner />}>
+            <SettingsPage />
+          </Suspense>
+        )
       case 'admin':
-        return <AdminDashboard />
+        return (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AdminDashboard />
+          </Suspense>
+        )
       default:
         return <DashboardPage />
     }

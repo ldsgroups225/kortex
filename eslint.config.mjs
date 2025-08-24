@@ -7,5 +7,6 @@ export default antfu({
   },
   ignores: [
     'convex/_generated',
+    '.kiro/steering/convex_rules.md',
   ],
 })

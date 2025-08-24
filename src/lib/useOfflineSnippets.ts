@@ -130,7 +130,6 @@ export function useOfflineSnippets(userId: Id<'users'> | null): UseOfflineSnippe
     const handleSyncComplete = () => {
       // Reload data from server after sync completes
       if (isInitialized && offlineSync.status.connectionState === 'online') {
-        console.warn('Sync completed, revalidating snippets data')
         loadFromLocal()
       }
     }

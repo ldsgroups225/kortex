@@ -40,11 +40,10 @@ export function PwaInstallPrompt({ className = '' }: PwaInstallPromptProps) {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegistered(r) {
-      console.warn('SW Registered:', r)
+    onRegistered() {
     },
     onRegisterError(error) {
-      console.warn('SW registration error', error)
+      console.error('SW registration error', error)
     },
   })
 

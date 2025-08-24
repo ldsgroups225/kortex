@@ -68,7 +68,6 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   try {
     // Request permission
     const permission = await Notification.requestPermission()
-    console.warn('Notification permission result:', permission)
     return permission
   }
   catch (error) {
@@ -124,7 +123,6 @@ export async function subscribeToPush(vapidPublicKey?: string): Promise<PushSubs
     // Check if already subscribed
     let subscription = await registration.pushManager.getSubscription()
     if (subscription) {
-      console.warn('Already subscribed to push notifications')
       return subscription
     }
 
@@ -135,7 +133,6 @@ export async function subscribeToPush(vapidPublicKey?: string): Promise<PushSubs
     }
 
     subscription = await registration.pushManager.subscribe(subscribeOptions)
-    console.warn('Successfully subscribed to push notifications:', subscription)
 
     return subscription
   }
@@ -158,12 +155,10 @@ export async function unsubscribeFromPush(): Promise<boolean> {
     const subscription = await registration.pushManager.getSubscription()
 
     if (!subscription) {
-      console.warn('No push subscription found')
       return true
     }
 
     const result = await subscription.unsubscribe()
-    console.warn('Unsubscribed from push notifications:', result)
     return result
   }
   catch (error) {
@@ -221,7 +216,6 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
  */
 export async function showLocalNotification(payload: NotificationPayload): Promise<Notification | null> {
   if (!hasNotificationPermission()) {
-    console.warn('Cannot show notification: permission not granted')
     return null
   }
 
@@ -308,7 +302,6 @@ export function setupPushSubscriptionChangeHandler(): void {
 
   navigator.serviceWorker.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'subscription-change') {
-      console.warn('Push subscription changed:', event.data)
       // Handle subscription change - you might want to re-subscribe
       // or update your server with the new subscription
     }

@@ -80,7 +80,6 @@ export function SettingsPage() {
 
   const handleDeleteAccount = () => {
     // TODO: Replace with proper confirmation dialog
-    console.warn('Delete account functionality to be implemented')
   }
 
   const themeOptions = [

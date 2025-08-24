@@ -13,6 +13,10 @@ export interface SyncStatus {
   isOnline: boolean
   isSyncing: boolean
   offlineChanges: number
+  // Additional properties for extended sync status
+  pending?: number
+  failed?: number
+  synced?: number
 }
 
 // Hook for offline-first sync management
@@ -56,10 +60,7 @@ export function useOfflineSync(_userId: Id<'users'> | null) {
 
     try {
       // Register background sync with service worker
-      const backgroundSyncRegistered = await registerBackgroundSync('kortex-sync')
-      if (backgroundSyncRegistered) {
-        console.warn('Background sync registered successfully')
-      }
+      await registerBackgroundSync('kortex-sync')
 
       // Queue sync request to service worker
       queueSyncRequest('full-sync')

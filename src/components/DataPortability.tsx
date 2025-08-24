@@ -140,7 +140,7 @@ export function DataPortability() {
         }
       }
       catch (error) {
-        console.warn('Import failed:', error)
+        console.error('Import failed:', error)
         setError('Failed to read import file')
       }
     }
@@ -155,11 +155,10 @@ export function DataPortability() {
     try {
       // Here you would implement the actual import logic
       // For now, we'll just show a success message
-      console.warn('Importing data:', importPreview)
       setSuccess('Import functionality will be implemented with Convex mutations')
     }
     catch (error) {
-      console.warn('Import failed:', error)
+      console.error('Import failed:', error)
       setError('Import failed')
     }
     finally {

@@ -128,7 +128,6 @@ export function useOfflineNotes(userId: Id<'users'> | null): UseOfflineNotesRetu
     const handleSyncComplete = () => {
       // Reload data from server after sync completes
       if (isInitialized && offlineSync.status.connectionState === 'online') {
-        console.warn('Sync completed, revalidating notes data')
         loadFromLocal()
       }
     }

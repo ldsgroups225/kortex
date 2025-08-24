@@ -65,16 +65,12 @@ async function initDB() {
 
 // Install event - cache static resources
 globalThis.addEventListener('install', (event) => {
-  console.warn('Service worker installing...')
-
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.warn('Caching static resources')
         return cache.addAll(STATIC_CACHE_URLS)
       })
       .then(() => {
-        console.warn('Static resources cached')
         return globalThis.skipWaiting()
       }),
   )
@@ -82,15 +78,12 @@ globalThis.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 globalThis.addEventListener('activate', (event) => {
-  console.warn('Service worker activating...')
-
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== CACHE_NAME) {
-              console.warn('Deleting old cache:', cacheName)
               return caches.delete(cacheName)
             }
             return null // Explicit return for the case when cacheName === CACHE_NAME
@@ -98,7 +91,6 @@ globalThis.addEventListener('activate', (event) => {
         )
       })
       .then(() => {
-        console.warn('Service worker activated')
         return globalThis.clients.claim()
       }),
   )
@@ -150,8 +142,6 @@ globalThis.addEventListener('fetch', (event) => {
 
 // Background sync event - handle sync requests
 globalThis.addEventListener('sync', (event) => {
-  console.warn('Background sync triggered:', event.tag)
-
   if (event.tag === 'kortex-sync') {
     event.waitUntil(handleKortexSync())
   }
@@ -160,8 +150,6 @@ globalThis.addEventListener('sync', (event) => {
 // Message event - handle messages from main thread
 globalThis.addEventListener('message', (event) => {
   const { type, payload } = event.data
-
-  console.warn('Service worker received message:', type, payload)
 
   switch (type) {
     case 'SYNC_REQUEST':
@@ -176,11 +164,8 @@ globalThis.addEventListener('message', (event) => {
 // Handle Kortex sync operations
 async function handleKortexSync() {
   try {
-    console.warn('Handling Kortex background sync')
-
     // Check if we have network connectivity
     if (!navigator.onLine) {
-      console.warn('No network connectivity, sync deferred')
       return
     }
 
@@ -188,17 +173,13 @@ async function handleKortexSync() {
     const syncQueue = await getSyncQueue()
 
     if (syncQueue.length === 0) {
-      console.warn('No pending sync requests')
       return
     }
-
-    console.warn(`Processing ${syncQueue.length} pending sync requests`)
 
     // Process each sync request
     for (const syncRequest of syncQueue) {
       try {
         await processSyncRequest(syncRequest)
-        console.warn('Sync request processed:', syncRequest.payload.action)
       }
       catch (error) {
         console.error('Failed to process sync request:', error)
@@ -220,8 +201,6 @@ async function handleKortexSync() {
         timestamp: Date.now(),
       },
     })
-
-    console.warn('Background sync completed successfully')
   }
   catch (error) {
     console.error('Background sync failed:', error)
@@ -241,8 +220,6 @@ async function handleKortexSync() {
 // Handle individual sync requests from main thread
 async function handleSyncRequest(payload) {
   try {
-    console.warn('Processing sync request:', payload.action)
-
     // Store sync request for background processing
     await addToSyncQueue({
       type: 'SYNC_REQUEST',
@@ -252,9 +229,6 @@ async function handleSyncRequest(payload) {
     // If online, try to process immediately
     if (navigator.onLine) {
       await handleKortexSync()
-    }
-    else {
-      console.warn('Offline - sync request queued for later')
     }
   }
   catch (error) {
@@ -290,7 +264,6 @@ async function processSyncRequest(syncRequest) {
 
 // Sync todos data
 async function syncTodos() {
-  console.warn('Syncing todos data...')
   // In a real implementation, this would:
   // 1. Read pending todos from localStorage/IndexedDB
   // 2. Send them to your backend API
@@ -299,34 +272,27 @@ async function syncTodos() {
 
   // Placeholder - simulate API call
   await new Promise(resolve => setTimeout(resolve, 500))
-  console.warn('Todos sync completed')
 }
 
 // Sync notes data
 async function syncNotes() {
-  console.warn('Syncing notes data...')
   // Similar to syncTodos but for notes
   await new Promise(resolve => setTimeout(resolve, 500))
-  console.warn('Notes sync completed')
 }
 
 // Sync snippets data
 async function syncSnippets() {
-  console.warn('Syncing snippets data...')
   // Similar to syncTodos but for snippets
   await new Promise(resolve => setTimeout(resolve, 500))
-  console.warn('Snippets sync completed')
 }
 
 // Sync all data types
 async function syncAllData(data) {
-  console.warn('Syncing all data...')
   await Promise.all([
     syncTodos(data),
     syncNotes(data),
     syncSnippets(data),
   ])
-  console.warn('Full sync completed')
 }
 
 // Get sync queue from IndexedDB
@@ -365,7 +331,6 @@ async function addToSyncQueue(syncRequest) {
       const request = store.add(item)
 
       request.onsuccess = () => {
-        console.warn('Sync request queued:', syncRequest.payload.action)
         resolve(request.result)
       }
       request.onerror = () => reject(request.error)
@@ -386,7 +351,6 @@ async function clearSyncQueue() {
       const request = store.clear()
 
       request.onsuccess = () => {
-        console.warn('Sync queue cleared')
         resolve()
       }
       request.onerror = () => reject(request.error)
@@ -428,7 +392,6 @@ async function storeOfflineData(type, data) {
 async function updateLastSyncTime() {
   try {
     await storeOfflineData('lastSync', { timestamp: Date.now() })
-    console.warn('Last sync time updated')
   }
   catch (error) {
     console.error('Failed to update last sync time:', error)
@@ -443,8 +406,6 @@ async function notifyClients(message) {
       type: 'window',
     })
 
-    console.warn(`Notifying ${clients.length} clients about sync event`)
-
     clients.forEach((client) => {
       client.postMessage(message)
     })
@@ -456,8 +417,6 @@ async function notifyClients(message) {
 
 // Handle periodic sync (if supported)
 globalThis.addEventListener('periodicsync', (event) => {
-  console.warn('Periodic sync triggered:', event.tag)
-
   if (event.tag === 'kortex-periodic-sync') {
     event.waitUntil(handleKortexSync())
   }
@@ -465,8 +424,6 @@ globalThis.addEventListener('periodicsync', (event) => {
 
 // Push notification event handler
 globalThis.addEventListener('push', (event) => {
-  console.warn('Push notification received:', event)
-
   // Default notification data
   const defaultNotification = {
     title: 'Kortex Notification',
@@ -504,7 +461,7 @@ globalThis.addEventListener('push', (event) => {
       }
     }
     catch (error) {
-      console.warn('Failed to parse push payload, using text:', error)
+      console.error('Failed to parse push payload, using text:', error)
       notificationData.body = event.data.text() || defaultNotification.body
     }
   }
@@ -525,8 +482,6 @@ globalThis.addEventListener('push', (event) => {
 
 // Handle notification click events
 globalThis.addEventListener('notificationclick', (event) => {
-  console.warn('Notification clicked:', event)
-
   // Close the notification
   event.notification.close()
 
@@ -548,7 +503,6 @@ globalThis.addEventListener('notificationclick', (event) => {
   }
   else if (event.action === 'dismiss') {
     // Just close the notification (already handled above)
-    console.warn('Notification dismissed')
   }
   else {
     // Default action (click on notification body)
@@ -566,15 +520,12 @@ globalThis.addEventListener('notificationclick', (event) => {
 })
 
 // Handle notification close events
-globalThis.addEventListener('notificationclose', (event) => {
-  console.warn('Notification closed:', event)
+globalThis.addEventListener('notificationclose', () => {
   // Optional: Track notification dismissal analytics
 })
 
 // Initialize IndexedDB immediately when service worker loads
 initDB().then(() => {
-  console.warn('Kortex service worker loaded with IndexedDB initialized')
 }).catch((error) => {
   console.error('Failed to initialize IndexedDB:', error)
-  console.warn('Kortex service worker loaded (fallback mode)')
 })

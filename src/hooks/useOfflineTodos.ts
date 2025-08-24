@@ -86,7 +86,7 @@ function getInitialDocument(): AutomergeTodosDocument {
       return Automerge.load<AutomergeTodosDocument>(uint8Array)
     }
     catch (error) {
-      console.warn('Failed to load todos from localStorage:', error)
+      console.error('Failed to load todos from localStorage:', error)
     }
   }
   return Automerge.from<AutomergeTodosDocument>({ todos: {} })
@@ -100,7 +100,7 @@ function saveDocument(doc: AutomergeTodosDocument) {
     localStorage.setItem(TODOS_STORAGE_KEY, jsonArray)
   }
   catch (error) {
-    console.warn('Failed to save todos to localStorage:', error)
+    console.error('Failed to save todos to localStorage:', error)
   }
 }
 
@@ -224,7 +224,6 @@ export function useOfflineTodos() {
     const handleSyncComplete = () => {
       // Reload data after sync completes
       if (isOnline) {
-        console.warn('Sync completed, revalidating todos data')
         // The sync handling is already done in the existing useEffect for convexTodos
       }
     }
@@ -338,41 +337,47 @@ export function useOfflineTodos() {
     const syncWithConvex = async () => {
       setSyncInProgress(true)
       try {
-        // Merge Convex todos into Automerge document
-        const newDoc = Automerge.change(todosDoc, (doc) => {
-          // Flatten all todos from Convex response
-          const allConvexTodos = [
-            ...convexTodos.todo,
-            ...convexTodos.inProgress,
-            ...convexTodos.done,
-          ]
+        // Use the current todosDoc state directly instead of from closure
+        setTodosDoc((currentDoc) => {
+          // Merge Convex todos into Automerge document
+          const newDoc = Automerge.change(currentDoc, (doc) => {
+            // Flatten all todos from Convex response
+            const allConvexTodos = [
+              ...convexTodos.todo,
+              ...convexTodos.inProgress,
+              ...convexTodos.done,
+            ]
 
-          // Update existing todos and add new ones from Convex
-          allConvexTodos.forEach((convexTodo) => {
-            const automergeId = convexTodo._id
-            const existingTodo = doc.todos[automergeId]
+            // Update existing todos and add new ones from Convex
+            allConvexTodos.forEach((convexTodo) => {
+              const automergeId = convexTodo._id
+              const existingTodo = doc.todos[automergeId]
 
-            if (!existingTodo || existingTodo.syncStatus !== 'pending') {
-              // Only update if not pending local changes
-              doc.todos[automergeId] = convertToAutomergeTodo(convexTodo, currentUser._id)
-            }
+              if (!existingTodo || existingTodo.syncStatus !== 'pending') {
+                // Only update if not pending local changes
+                doc.todos[automergeId] = convertToAutomergeTodo(convexTodo, currentUser._id)
+              }
+            })
+
+            // Remove todos that no longer exist in Convex (unless they're offline-only)
+            const convexTodoIds = new Set(allConvexTodos.map(t => t._id))
+            Object.keys(doc.todos).forEach((id) => {
+              const todo = doc.todos[id]
+              if (!todo.isOfflineOnly && !convexTodoIds.has(id) && todo.syncStatus !== 'pending') {
+                delete doc.todos[id]
+              }
+            })
           })
 
-          // Remove todos that no longer exist in Convex (unless they're offline-only)
-          const convexTodoIds = new Set(allConvexTodos.map(t => t._id))
-          Object.keys(doc.todos).forEach((id) => {
-            const todo = doc.todos[id]
-            if (!todo.isOfflineOnly && !convexTodoIds.has(id) && todo.syncStatus !== 'pending') {
-              delete doc.todos[id]
-            }
+          setLastSyncTime(new Date())
+
+          // Attempt to sync pending offline changes with the new document
+          syncPendingChanges(newDoc).catch((error) => {
+            console.error('Failed to sync pending changes:', error)
           })
+
+          return newDoc
         })
-
-        setTodosDoc(newDoc)
-        setLastSyncTime(new Date())
-
-        // Attempt to sync pending offline changes
-        await syncPendingChanges(newDoc)
       }
       catch (error) {
         console.error('Sync error:', error)
@@ -383,7 +388,7 @@ export function useOfflineTodos() {
     }
 
     syncWithConvex()
-  }, [convexTodos, currentUser, isOnline, syncPendingChanges, todosDoc]) // Added todosDoc back to dependencies
+  }, [convexTodos, currentUser, isOnline, syncPendingChanges]) // Removed todosDoc from dependencies
 
   // Get todos organized by status
   const todos = useMemo(() => {
@@ -437,11 +442,10 @@ export function useOfflineTodos() {
     // Return SyncStatus compatible object
     return {
       connectionState,
-      lastSync: lastSyncTime ? lastSyncTime.getTime() : 0,
+      lastSync: lastSyncTime || undefined,
       isOnline,
       isSyncing: syncInProgress,
       offlineChanges: pending,
-      pendingSyncs: pending,
       // Keep legacy properties for backward compatibility
       pending,
       failed,
@@ -510,11 +514,7 @@ export function useOfflineTodos() {
     // Notify service worker of the new todo and increment offline changes counter
     notifyAutomergeChanges(STORAGE_KEYS.TODOS, 'create', newTodo)
 
-    // Update offline changes count in sync status
-    const _currentPending = Object.values(todosDoc.todos).filter(t =>
-      t.syncStatus === 'pending' || t.isOfflineOnly,
-    ).length
-    // The count will be updated in the syncStatus useMemo
+    // The offline changes count will be updated automatically via the syncStatus useMemo
 
     // Show immediate feedback
     toast.success(isOnline ? 'Todo created' : 'Todo created offline', {
@@ -566,7 +566,7 @@ export function useOfflineTodos() {
     }
 
     return todoId
-  }, [currentUser, createTodoMutation, isOnline, todosDoc.todos]) // Added todosDoc.todos to dependencies
+  }, [currentUser, createTodoMutation, isOnline]) // Removed todosDoc.todos from dependencies
 
   // Update todo
   const updateTodo = useCallback(async (todoId: string, updates: {
@@ -577,11 +577,21 @@ export function useOfflineTodos() {
     assignedToUserId?: Id<'users'> | string
     dueDate?: number
   }) => {
-    const existingTodo = todosDoc.todos[todoId]
+    let existingTodo: AutomergeTodo | undefined
+
+    // Get the existing todo from current state
+    setTodosDoc((current) => {
+      existingTodo = current.todos[todoId]
+      return current // Don't change the document yet
+    })
+
     if (!existingTodo) {
       toast.error('Todo not found')
       return
     }
+
+    // Capture the existing todo for type safety
+    const currentTodo = existingTodo
 
     // Update local document
     setTodosDoc(current => Automerge.change(current, (doc) => {
@@ -638,7 +648,7 @@ export function useOfflineTodos() {
     })
 
     // Try to sync immediately if online
-    if (isOnline && !existingTodo.isOfflineOnly) {
+    if (isOnline && !currentTodo.isOfflineOnly) {
       try {
         const mutationData: any = {
           id: todoId as Id<'todos'>,
@@ -676,15 +686,25 @@ export function useOfflineTodos() {
         toast.error('Failed to sync todo update')
       }
     }
-  }, [todosDoc.todos, updateTodoMutation, isOnline])
+  }, [updateTodoMutation, isOnline])
 
   // Delete todo
   const deleteTodo = useCallback(async (todoId: string) => {
-    const existingTodo = todosDoc.todos[todoId]
+    let existingTodo: AutomergeTodo | undefined
+
+    // Get the existing todo from current state
+    setTodosDoc((current) => {
+      existingTodo = current.todos[todoId]
+      return current // Don't change the document yet
+    })
+
     if (!existingTodo) {
       toast.error('Todo not found')
       return
     }
+
+    // Capture the existing todo for type safety
+    const todoToDelete = existingTodo
 
     // Remove from local document
     setTodosDoc(current => Automerge.change(current, (doc) => {
@@ -699,7 +719,7 @@ export function useOfflineTodos() {
     toast.success('Todo deleted', { duration: 2000 })
 
     // Try to sync deletion if online and not offline-only
-    if (isOnline && !existingTodo.isOfflineOnly) {
+    if (isOnline && !todoToDelete.isOfflineOnly) {
       try {
         await deleteTodoMutation({ id: todoId as Id<'todos'> })
       }
@@ -709,21 +729,30 @@ export function useOfflineTodos() {
 
         // Re-add the todo if deletion failed
         setTodosDoc(current => Automerge.change(current, (doc) => {
-          doc.todos[todoId] = existingTodo
+          doc.todos[todoId] = todoToDelete
         }))
       }
     }
-  }, [todosDoc.todos, deleteTodoMutation, isOnline])
+  }, [deleteTodoMutation, isOnline])
 
   // Toggle todo status
   const toggleTodoStatus = useCallback(async (todoId: string) => {
-    const existingTodo = todosDoc.todos[todoId]
+    let existingTodo: AutomergeTodo | undefined
+
+    // Get the existing todo from current state
+    setTodosDoc((current) => {
+      existingTodo = current.todos[todoId]
+      return current // Don't change the document yet
+    })
+
     if (!existingTodo) {
       toast.error('Todo not found')
       return
     }
 
-    const newStatus: TodoStatus = existingTodo.status === 'done' ? 'todo' : 'done'
+    // Capture the existing todo for type safety
+    const currentTodo = existingTodo
+    const newStatus: TodoStatus = currentTodo.status === 'done' ? 'todo' : 'done'
 
     // Update local document
     setTodosDoc(current => Automerge.change(current, (doc) => {
@@ -738,7 +767,7 @@ export function useOfflineTodos() {
     toast.success(`Todo marked as ${newStatus === 'done' ? 'done' : 'todo'}`, { duration: 2000 })
 
     // Try to sync immediately if online
-    if (isOnline && !existingTodo.isOfflineOnly) {
+    if (isOnline && !currentTodo.isOfflineOnly) {
       try {
         await toggleTodoStatusMutation({ id: todoId as Id<'todos'> })
 
@@ -758,7 +787,7 @@ export function useOfflineTodos() {
         toast.error('Failed to sync todo status')
       }
     }
-  }, [todosDoc.todos, toggleTodoStatusMutation, isOnline])
+  }, [toggleTodoStatusMutation, isOnline])
 
   // Retry failed syncs
   const retryFailedSyncs = useCallback(async () => {
@@ -767,7 +796,14 @@ export function useOfflineTodos() {
       return
     }
 
-    const failedTodos = Object.entries(todosDoc.todos).filter(([_, todo]) =>
+    // Get current document state and check for failed todos
+    let currentDoc: AutomergeTodosDocument
+    setTodosDoc((current) => {
+      currentDoc = current
+      return current
+    })
+
+    const failedTodos = Object.entries(currentDoc!.todos).filter(([_, todo]) =>
       todo.syncStatus === 'failed',
     )
 
@@ -777,8 +813,8 @@ export function useOfflineTodos() {
     }
 
     toast.info(`Retrying ${failedTodos.length} failed syncs...`)
-    await syncPendingChanges(todosDoc)
-  }, [todosDoc, isOnline, syncPendingChanges])
+    await syncPendingChanges(currentDoc!)
+  }, [isOnline, syncPendingChanges])
 
   // Force full sync
   const forceSyncAll = useCallback(() => {

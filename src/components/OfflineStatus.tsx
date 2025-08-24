@@ -46,9 +46,9 @@ export function OfflineStatus({ status, onForcSync, className = '' }: OfflineSta
           bgColor: 'bg-green-50 dark:bg-green-900/20',
           textColor: 'text-green-700 dark:text-green-300',
           iconColor: 'text-green-600 dark:text-green-400',
-          description: status.lastSync && status.lastSync > 0
+          description: status.lastSync
             ? t('sync.lastSyncAt', {
-                time: new Date(status.lastSync).toLocaleTimeString(),
+                time: status.lastSync.toLocaleTimeString(),
               })
             : t('sync.connected'),
         }
@@ -72,7 +72,7 @@ export function OfflineStatus({ status, onForcSync, className = '' }: OfflineSta
           bgColor: 'bg-blue-50 dark:bg-blue-900/20',
           textColor: 'text-blue-700 dark:text-blue-300',
           iconColor: 'text-blue-600 dark:text-blue-400',
-          description: t('sync.syncingChanges', { count: status.pendingSyncs || 0 }),
+          description: t('sync.syncingChanges', { count: status.offlineChanges || 0 }),
         }
 
       case 'error':
@@ -132,9 +132,9 @@ export function OfflineStatus({ status, onForcSync, className = '' }: OfflineSta
                 </span>
               )}
 
-              {(status.pendingSyncs || 0) > 0 && status.connectionState === 'syncing' && (
+              {(status.offlineChanges || 0) > 0 && status.connectionState === 'syncing' && (
                 <span className="px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-                  {status.pendingSyncs || 0}
+                  {status.offlineChanges || 0}
                   {' '}
                   {t('sync.syncing')}
                 </span>
@@ -233,11 +233,17 @@ export function PwaStatusBadge({ className = '' }: { className?: string }) {
     needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegistered(r) {
-      console.warn('SW Registered:', r)
+    onRegistered() {
+      console.log('SW Registered')
     },
     onRegisterError(error) {
-      console.warn('SW registration error', error)
+      console.error('SW registration error', error)
+    },
+    onNeedRefresh() {
+      console.log('SW needs refresh')
+    },
+    onOfflineReady() {
+      console.log('SW offline ready')
     },
   })
 
@@ -284,7 +290,11 @@ export function PwaStatusBadge({ className = '' }: { className?: string }) {
       {needRefresh && (
         <button
           type="button"
-          onClick={() => updateServiceWorker(true)}
+          onClick={() => {
+            // Simple approach: just reload the page
+            // The service worker will handle the update automatically
+            window.location.reload()
+          }}
           className="ml-1 text-xs underline hover:no-underline"
         >
           {t('pwa.reload')}
