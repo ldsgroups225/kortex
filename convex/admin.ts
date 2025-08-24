@@ -59,10 +59,17 @@ export const getAdminAnalytics = query({
     await checkAdmin(ctx)
 
     // Get total counts
-    const totalUsers = await ctx.db.query('users').collect()
+    const totalUsers = await ctx.db.query('users').collect() // Still fetching all users
+
+    const counters = await ctx.db.query('stats').collect()
+    const statsMap = new Map(counters.map(c => [c.name, c.count]))
+    const totalNotesCount = statsMap.get('totalNotes') || 0
+    const totalSnippetsCount = statsMap.get('totalSnippets') || 0
+    const totalTodosCount = statsMap.get('totalTodos') || 0
+
+    // For top languages and tags, we still need to fetch the documents.
     const totalNotes = await ctx.db.query('notes').collect()
     const totalSnippets = await ctx.db.query('snippets').collect()
-    const totalTodos = await ctx.db.query('todos').collect()
 
     // Get active users (last 24h and 7d)
     const now = Date.now()
@@ -124,9 +131,9 @@ export const getAdminAnalytics = query({
 
     return {
       totalUsers: totalUsers.length,
-      totalNotes: totalNotes.length,
-      totalSnippets: totalSnippets.length,
-      totalTodos: totalTodos.length,
+      totalNotes: totalNotesCount,
+      totalSnippets: totalSnippetsCount,
+      totalTodos: totalTodosCount,
       activeUsers24h,
       activeUsers7d,
       topLanguages,
@@ -154,14 +161,42 @@ export const getNotesForModeration = query({
     await checkAdmin(ctx)
 
     let items
-    if (args.userId) {
-      items = await ctx.db
-        .query('notes')
-        .withIndex('by_user', q => q.eq('userId', args.userId!))
-        .collect()
+    if (!args.searchQuery) {
+      if (args.userId) {
+        items = await ctx.db.query('notes').withIndex('by_user', q => q.eq('userId', args.userId!)).order('desc').take(100)
+      }
+      else {
+        items = await ctx.db.query('notes').order('desc').take(100)
+      }
     }
     else {
-      items = await ctx.db.query('notes').collect()
+      const titleResults = await ctx.db
+        .query('notes')
+        .withSearchIndex('search_title', (q) => {
+          let search = q.search('title', args.searchQuery!)
+          if (args.userId) {
+            search = search.eq('userId', args.userId)
+          }
+          return search
+        })
+        .take(100)
+
+      const contentResults = await ctx.db
+        .query('notes')
+        .withSearchIndex('search_content', (q) => {
+          let search = q.search('content', args.searchQuery!)
+          if (args.userId) {
+            search = search.eq('userId', args.userId)
+          }
+          return search
+        })
+        .take(100)
+
+      const allResults = [...titleResults, ...contentResults]
+      items = allResults.filter(
+        (note, index, self) =>
+          index === self.findIndex(n => n._id === note._id),
+      )
     }
 
     // Get user emails for the items
@@ -169,17 +204,7 @@ export const getNotesForModeration = query({
     const users = await Promise.all(userIds.map(id => ctx.db.get(id)))
     const userMap = new Map(users.map(user => [user?._id, user?.email]))
 
-    // Filter by search query if provided
-    let filteredItems = items
-    if (args.searchQuery) {
-      const query = args.searchQuery.toLowerCase()
-      filteredItems = items.filter(item =>
-        item.title.toLowerCase().includes(query)
-        || item.content.toLowerCase().includes(query),
-      )
-    }
-
-    return filteredItems.map(item => ({
+    return items.map(item => ({
       _id: item._id,
       _creationTime: item._creationTime,
       userId: item.userId,
@@ -210,14 +235,42 @@ export const getSnippetsForModeration = query({
     await checkAdmin(ctx)
 
     let items
-    if (args.userId) {
-      items = await ctx.db
-        .query('snippets')
-        .withIndex('by_user', q => q.eq('userId', args.userId!))
-        .collect()
+    if (!args.searchQuery) {
+      if (args.userId) {
+        items = await ctx.db.query('snippets').withIndex('by_user', q => q.eq('userId', args.userId!)).order('desc').take(100)
+      }
+      else {
+        items = await ctx.db.query('snippets').order('desc').take(100)
+      }
     }
     else {
-      items = await ctx.db.query('snippets').collect()
+      const titleResults = await ctx.db
+        .query('snippets')
+        .withSearchIndex('search_title', (q) => {
+          let search = q.search('title', args.searchQuery!)
+          if (args.userId) {
+            search = search.eq('userId', args.userId)
+          }
+          return search
+        })
+        .take(100)
+
+      const contentResults = await ctx.db
+        .query('snippets')
+        .withSearchIndex('search_content', (q) => {
+          let search = q.search('content', args.searchQuery!)
+          if (args.userId) {
+            search = search.eq('userId', args.userId)
+          }
+          return search
+        })
+        .take(100)
+
+      const allResults = [...titleResults, ...contentResults]
+      items = allResults.filter(
+        (snippet, index, self) =>
+          index === self.findIndex(s => s._id === snippet._id),
+      )
     }
 
     // Get user emails for the items
@@ -225,17 +278,7 @@ export const getSnippetsForModeration = query({
     const users = await Promise.all(userIds.map(id => ctx.db.get(id)))
     const userMap = new Map(users.map(user => [user?._id, user?.email]))
 
-    // Filter by search query if provided
-    let filteredItems = items
-    if (args.searchQuery) {
-      const query = args.searchQuery.toLowerCase()
-      filteredItems = items.filter(item =>
-        item.title.toLowerCase().includes(query)
-        || item.content.toLowerCase().includes(query),
-      )
-    }
-
-    return filteredItems.map(item => ({
+    return items.map(item => ({
       _id: item._id,
       _creationTime: item._creationTime,
       userId: item.userId,
@@ -267,14 +310,42 @@ export const getTodosForModeration = query({
     await checkAdmin(ctx)
 
     let items
-    if (args.userId) {
-      items = await ctx.db
-        .query('todos')
-        .withIndex('by_user', q => q.eq('userId', args.userId!))
-        .collect()
+    if (!args.searchQuery) {
+      if (args.userId) {
+        items = await ctx.db.query('todos').withIndex('by_user', q => q.eq('userId', args.userId!)).order('desc').take(100)
+      }
+      else {
+        items = await ctx.db.query('todos').order('desc').take(100)
+      }
     }
     else {
-      items = await ctx.db.query('todos').collect()
+      const titleResults = await ctx.db
+        .query('todos')
+        .withSearchIndex('search_title', (q) => {
+          let search = q.search('title', args.searchQuery!)
+          if (args.userId) {
+            search = search.eq('userId', args.userId)
+          }
+          return search
+        })
+        .take(100)
+
+      const descriptionResults = await ctx.db
+        .query('todos')
+        .withSearchIndex('search_description', (q) => {
+          let search = q.search('description', args.searchQuery!)
+          if (args.userId) {
+            search = search.eq('userId', args.userId)
+          }
+          return search
+        })
+        .take(100)
+
+      const allResults = [...titleResults, ...descriptionResults]
+      items = allResults.filter(
+        (todo, index, self) =>
+          index === self.findIndex(t => t._id === todo._id),
+      )
     }
 
     // Get user emails for the items
@@ -282,17 +353,7 @@ export const getTodosForModeration = query({
     const users = await Promise.all(userIds.map(id => ctx.db.get(id)))
     const userMap = new Map(users.map(user => [user?._id, user?.email]))
 
-    // Filter by search query if provided
-    let filteredItems = items
-    if (args.searchQuery) {
-      const query = args.searchQuery.toLowerCase()
-      filteredItems = items.filter(item =>
-        item.title.toLowerCase().includes(query)
-        || (item.description && item.description.toLowerCase().includes(query)),
-      )
-    }
-
-    return filteredItems.map(item => ({
+    return items.map(item => ({
       _id: item._id,
       _creationTime: item._creationTime,
       userId: item.userId,

@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => ({
       devOptions: { enabled: mode === 'development' },
       injectRegister: 'auto',
       workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         navigateFallback: '/offline.html',
         navigateFallbackDenylist: [
           /^\/_/, // API routes

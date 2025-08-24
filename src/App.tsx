@@ -258,8 +258,13 @@ function AuthenticatedApp({
     </div>
   )
 
-  // For notes page - full height layout
-  if (currentRoute === 'notes') {
+  if (currentRoute === 'notes' || currentRoute === 'snippets' || currentRoute === 'todos') {
+    const PageComponent = {
+      notes: NotesPage,
+      snippets: SnippetsPage,
+      todos: TodosPage,
+    }[currentRoute]
+
     return (
       <div className="flex h-screen">
         {/* Mobile sidebar overlay */}
@@ -271,7 +276,8 @@ function AuthenticatedApp({
         )}
 
         {/* Main App Sidebar */}
-        <div className={`
+        <div
+          className={`
           fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
@@ -279,41 +285,10 @@ function AuthenticatedApp({
           {renderSidebar({})}
         </div>
 
-        {/* Notes page content */}
+        {/* Page content */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <Suspense fallback={<LoadingSpinner />}>
-            <NotesPage sidebarOpen={false} setSidebarOpen={() => setSidebarOpen(true)} />
-          </Suspense>
-        </div>
-      </div>
-    )
-  }
-
-  // For todos page - full height layout
-  if (currentRoute === 'todos') {
-    return (
-      <div className="flex h-screen">
-        {/* Mobile sidebar overlay */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Main App Sidebar */}
-        <div className={`
-          fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}
-        >
-          {renderSidebar({})}
-        </div>
-
-        {/* Todos page content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Suspense fallback={<LoadingSpinner />}>
-            <TodosPage sidebarOpen={false} setSidebarOpen={() => setSidebarOpen(true)} />
+            <PageComponent />
           </Suspense>
         </div>
       </div>

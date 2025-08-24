@@ -113,6 +113,18 @@ export const createNote = mutation({
       updatedAt: now,
     })
 
+    // Update stats
+    const counter = await ctx.db
+      .query('stats')
+      .withIndex('by_name', q => q.eq('name', 'totalNotes'))
+      .first()
+    if (counter) {
+      await ctx.db.patch(counter._id, { count: counter.count + 1 })
+    }
+    else {
+      await ctx.db.insert('stats', { name: 'totalNotes', count: 1 })
+    }
+
     return noteId
   },
 })
@@ -183,6 +195,16 @@ export const deleteNote = mutation({
     }
 
     await ctx.db.delete(args.noteId)
+
+    // Update stats
+    const counter = await ctx.db
+      .query('stats')
+      .withIndex('by_name', q => q.eq('name', 'totalNotes'))
+      .first()
+    if (counter) {
+      await ctx.db.patch(counter._id, { count: counter.count - 1 })
+    }
+
     return args.noteId
   },
 })

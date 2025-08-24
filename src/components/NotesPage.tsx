@@ -1,46 +1,27 @@
 import type { FilterConfig } from './FilterBar'
-import {
-  ArrowLeftIcon,
-  Bars3Icon,
-  ClockIcon,
-  PlusIcon,
-  StarIcon,
-  TrashIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline'
+import { ClockIcon, PlusIcon, StarIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
 import { useQuery } from 'convex/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import { useOfflineNotes } from '../lib/useOfflineNotes'
-import { CopyButton } from './CopyButton'
 import { FilterBar } from './FilterBar'
 import { RichTextEditor } from './RichTextEditor'
 import { SearchBar } from './SearchBar'
-import { TagBadge } from './TagBadge'
 import { TagInput } from './TagInput'
+import { TwoColumnLayout } from './TwoColumnLayout'
 
-interface NotesPageProps {
-  sidebarOpen?: boolean
-  setSidebarOpen?: () => void
-}
-
-export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps = {}) {
+export function NotesPage() {
   const { t } = useTranslation()
-  const [isCreating, setIsCreating] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
-  const [notesSidebarOpen, setNotesSidebarOpen] = useState(false)
   const [activeFilters, setActiveFilters] = useState<Record<string, string | string[]>>({
     tags: [],
     pinned: '',
   })
 
-  // Get current user
   const loggedInUser = useQuery(api.auth.loggedInUser)
-
-  // Use offline notes hook
   const {
     notes,
     selectedNote,
@@ -51,11 +32,8 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
     selectNote,
     searchNotes,
     getUserTags,
-    syncStatus: _syncStatus,
-    forceSync: _forceSync,
   } = useOfflineNotes(loggedInUser?._id || null)
 
-  // Auto-save functionality - using offline notes directly
   const [pendingChanges, setPendingChanges] = useState<{
     title?: string
     content?: string
@@ -65,70 +43,40 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
   const saveChanges = useCallback(async () => {
     if (!selectedNote || Object.keys(pendingChanges).length === 0)
       return
-
     try {
       await updateNote(selectedNote._id, pendingChanges)
       setPendingChanges({})
-      // Toast is handled by the offline hook
     }
     catch (error) {
       console.error('Failed to save changes:', error)
-      toast.error(t('toasts.operationError'), {
-        description: t('toasts.operationErrorDesc'),
-      })
+      toast.error(t('toasts.operationError'))
     }
   }, [selectedNote, pendingChanges, updateNote, t])
 
-  // Auto-save every 2 seconds - use useRef to avoid dependency on saveChanges
   const saveChangesRef = useRef(saveChanges)
   saveChangesRef.current = saveChanges
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      saveChangesRef.current()
-    }, 2000)
+    const timer = setTimeout(() => saveChangesRef.current(), 2000)
     return () => clearTimeout(timer)
-  }, [pendingChanges]) // Only depend on pendingChanges, not the function itself
+  }, [pendingChanges])
 
-  // Save on unmount
-  useEffect(() => {
-    return () => {
-      // Access the current function directly to avoid stale closure
-      const currentSaveChanges = saveChangesRef.current
-      currentSaveChanges()
-    }
-  }, []) // Empty dependency array for unmount effect
-
-  // Get user tags
   const userTags = getUserTags()
 
-  // Filter and search logic
-  const getFilteredNotes = () => {
-    let filteredNotes = notes
-
-    if (!filteredNotes)
-      return []
-
-    // Apply filters
+  const filteredNotes = useMemo(() => {
+    let filtered = notes || []
     if (activeFilters.tags && Array.isArray(activeFilters.tags) && activeFilters.tags.length > 0) {
-      filteredNotes = filteredNotes.filter(note =>
-        note.tags && (activeFilters.tags as string[]).some((tag: string) => note.tags.includes(tag)),
-      )
+      filtered = filtered.filter(n => n.tags && activeFilters.tags.every(t => n.tags.includes(t as string)))
     }
-
     if (activeFilters.pinned === 'pinned') {
-      filteredNotes = filteredNotes.filter(note => note.pinned)
+      filtered = filtered.filter(n => n.pinned)
     }
     else if (activeFilters.pinned === 'unpinned') {
-      filteredNotes = filteredNotes.filter(note => !note.pinned)
+      filtered = filtered.filter(n => !n.pinned)
     }
+    return filtered
+  }, [notes, activeFilters])
 
-    return filteredNotes
-  }
-
-  const displayedNotes = getFilteredNotes()
-
-  // Filter configurations
   const filterConfigs: FilterConfig[] = [
     {
       key: 'tags',
@@ -148,469 +96,99 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
   ]
 
   const handleFilterChange = (key: string, value: string | string[]) => {
-    setActiveFilters(prev => ({
-      ...prev,
-      [key]: value,
-    }))
+    setActiveFilters(prev => ({ ...prev, [key]: value }))
   }
 
   const clearAllFilters = () => {
-    setActiveFilters({
-      tags: [],
-      pinned: '',
-    })
-    searchNotes('') // Use offline notes search
-  }
-
-  const handleTagClick = (tag: string) => {
-    const currentTags = Array.isArray(activeFilters.tags) ? activeFilters.tags : []
-    if (!currentTags.includes(tag)) {
-      handleFilterChange('tags', [...currentTags, tag])
-    }
+    setActiveFilters({ tags: [], pinned: '' })
+    searchNotes('')
   }
 
   const handleCreateNote = async () => {
-    if (isCreating)
-      return
-
-    setIsCreating(true)
     try {
-      const noteId = await createNote({
-        title: 'Untitled Note',
-        content: '',
-        tags: [],
-      })
+      const noteId = await createNote({ title: 'Untitled Note', content: '', tags: [] })
       selectNote(noteId)
-      // Close notes sidebar on mobile after creating note
-      setNotesSidebarOpen(false)
-      // Toast is handled by the offline hook
     }
     catch (error) {
       console.error('Failed to create note:', error)
-      toast.error(t('toasts.operationError'), {
-        description: t('toasts.operationErrorDesc'),
-      })
     }
-    finally {
-      setIsCreating(false)
-    }
-  }
-
-  const handleNoteSelect = (noteId: string) => {
-    selectNote(noteId)
-    // Close notes sidebar on mobile after selecting note
-    setNotesSidebarOpen(false)
   }
 
   const handleDeleteNote = async (noteId: string) => {
     try {
       await deleteNote(noteId)
       setShowDeleteConfirm(null)
-      // Toast is handled by the offline hook
     }
     catch (error) {
       console.error('Failed to delete note:', error)
-      toast.error(t('toasts.operationError'), {
-        description: t('toasts.operationErrorDesc'),
-      })
     }
   }
 
   const handleTogglePin = async (noteId: string) => {
     try {
       await togglePin(noteId)
-      // Toast is handled by the offline hook
     }
     catch (error) {
       console.error('Failed to toggle pin:', error)
-      toast.error(t('toasts.operationError'), {
-        description: t('toasts.operationErrorDesc'),
-      })
     }
   }
 
-  const updateTitle = (title: string) => {
-    setPendingChanges(prev => ({ ...prev, title }))
-  }
-
-  const updateContent = (content: string) => {
-    setPendingChanges(prev => ({ ...prev, content }))
-  }
-
-  const updateTags = (tags: string[]) => {
-    setPendingChanges(prev => ({ ...prev, tags }))
-  }
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('en-US', {
+  const formatDate = (timestamp: number) =>
+    new Date(timestamp).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     })
-  }
+
+  const sidebarContent = (
+    <SidebarContent
+      filteredNotes={filteredNotes}
+      handleCreateNote={handleCreateNote}
+      searchNotes={searchNotes}
+      t={t}
+      filterConfigs={filterConfigs}
+      activeFilters={activeFilters}
+      handleFilterChange={handleFilterChange}
+      clearAllFilters={clearAllFilters}
+      selectNote={selectNote}
+      selectedNote={selectedNote}
+      formatDate={formatDate}
+    />
+  )
+
+  const mainContent = (
+    <MainContent
+      selectedNote={selectedNote}
+      pendingChanges={pendingChanges}
+      setPendingChanges={setPendingChanges}
+      handleTogglePin={handleTogglePin}
+      setShowDeleteConfirm={setShowDeleteConfirm}
+      userTags={userTags}
+      formatDate={formatDate}
+    />
+  )
 
   return (
-    <div className="flex h-full bg-white dark:bg-gray-900 relative">
-      {/* Mobile overlay for notes sidebar */}
-      {notesSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
-          onClick={() => setNotesSidebarOpen(false)}
-        />
-      )}
-
-      {/* Notes Sidebar - Mobile first approach */}
-      <div className={`
-        fixed inset-y-0 left-0 z-40 w-full max-w-sm bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out
-        lg:relative lg:translate-x-0 lg:w-80 lg:max-w-none
-        ${notesSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}
-      >
-        <div className="flex flex-col h-full">
-          {/* Mobile header with close button */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 lg:hidden">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('notes.title')}</h2>
-            <button
-              type="button"
-              onClick={() => setNotesSidebarOpen(false)}
-              className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-            >
-              <XMarkIcon className="h-5 w-5" />
-            </button>
-          </div>
-
-          {/* Desktop header */}
-          <div className="hidden lg:block p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('notes.title')}</h2>
-              <button
-                type="button"
-                onClick={() => void handleCreateNote()}
-                disabled={isCreating}
-                className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                data-onboarding="create-note-button"
-              >
-                <PlusIcon className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile create button */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 lg:hidden">
-            <button
-              type="button"
-              onClick={() => void handleCreateNote()}
-              disabled={isCreating}
-              className="w-full flex items-center justify-center gap-2 p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              data-onboarding="create-note-button"
-            >
-              <PlusIcon className="h-4 w-4" />
-              <span className="font-medium">Create New Note</span>
-            </button>
-          </div>
-
-          {/* Search and Filters */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-4">
-            <SearchBar
-              value=""
-              onChange={searchNotes}
-              placeholder={t('notes.searchNotes')}
-            />
-
-            <FilterBar
-              filters={filterConfigs}
-              activeFilters={activeFilters}
-              onFilterChange={handleFilterChange}
-              onClearAll={clearAllFilters}
-            />
-          </div>
-
-          {/* Notes List */}
-          <div className="flex-1 overflow-y-auto">
-            {displayedNotes?.length === 0
-              ? (
-                  <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                    <div className="text-4xl mb-2">📝</div>
-                    <p className="text-sm">
-                      No notes yet
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => void handleCreateNote()}
-                      disabled={isCreating}
-                      className="mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                    >
-                      Create your first note
-                    </button>
-                  </div>
-                )
-              : (
-                  <div className="space-y-1 p-2" data-onboarding="notes-list">
-                    {displayedNotes?.map((note, index) => (
-                      <div
-                        key={note._id}
-                        onClick={() => handleNoteSelect(note._id)}
-                        style={{ animationDelay: `${index * 50}ms` }}
-                        className={`p-3 sm:p-4 rounded-md cursor-pointer transition-colors group animate-slide-in-from-bottom ${selectedNote?._id === note._id
-                          ? 'bg-blue-50 dark:bg-primary/10'
-                          : 'hover:bg-slate-50 dark:hover:bg-slate-700/40'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="font-medium text-gray-900 dark:text-white truncate flex-1 text-sm sm:text-base">
-                            {note.title || 'Untitled Note'}
-                          </h3>
-                          <div className="flex items-center gap-1 ml-2">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                void handleTogglePin(note._id)
-                              }}
-                              className="opacity-0 group-hover:opacity-100 sm:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
-                            >
-                              {note.pinned
-                                ? (
-                                    <StarIconSolid className="h-4 w-4 text-yellow-500" />
-                                  )
-                                : (
-                                    <StarIcon className="h-4 w-4 text-gray-400" />
-                                  )}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setShowDeleteConfirm(note._id)
-                              }}
-                              className="opacity-0 group-hover:opacity-100 sm:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
-                            >
-                              <TrashIcon className="h-4 w-4 text-red-500" />
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">
-                          {note.content.replace(/<[^>]*>/g, '').substring(0, 100) || 'No content'}
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                          <div className="flex items-center gap-1">
-                            <ClockIcon className="h-3 w-3" />
-                            <span className="hidden sm:inline">{formatDate(note.createdAt)}</span>
-                            <span className="sm:hidden">{new Date(note.createdAt).toLocaleDateString()}</span>
-                          </div>
-                          {note.tags.length > 0 && (
-                            <div className="flex gap-1 flex-wrap">
-                              {note.tags.slice(0, 2).map(tag => (
-                                <TagBadge
-                                  key={tag}
-                                  tag={tag}
-                                  onClick={() => handleTagClick(tag)}
-                                  clickable={true}
-                                  className="text-xs"
-                                />
-                              ))}
-                              {note.tags.length > 2 && (
-                                <span className="text-gray-400 text-xs">
-                                  +
-                                  {note.tags.length - 2}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Editor */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {selectedNote
-          ? (
-              <>
-                {/* Mobile header with back button */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 lg:hidden">
-                  <button
-                    type="button"
-                    onClick={() => selectNote(null)}
-                    className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    <ArrowLeftIcon className="h-5 w-5" />
-                  </button>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate mx-4">
-                    {(pendingChanges.title ?? selectedNote.title) || 'Untitled Note'}
-                  </h3>
-                  <CopyButton
-                    content={pendingChanges.title ?? selectedNote.title}
-                    size="sm"
-                  />
-                </div>
-
-                {/* Desktop Note Header */}
-                <div className="hidden lg:block p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <input
-                      type="text"
-                      value={pendingChanges.title ?? selectedNote.title}
-                      onChange={e => updateTitle(e.target.value)}
-                      className="flex-1 text-xl sm:text-2xl font-bold border-none bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-500"
-                      placeholder="Note title..."
-                      data-onboarding="note-title"
-                    />
-                    <CopyButton
-                      content={pendingChanges.title ?? selectedNote.title}
-                      size="sm"
-                      className="ml-2"
-                    />
-                  </div>
-
-                  <TagInput
-                    tags={pendingChanges.tags ?? selectedNote.tags}
-                    onChange={updateTags}
-                    suggestions={userTags}
-                    placeholder="Add tags..."
-                  />
-
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-                    <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
-                      <span className="whitespace-nowrap">
-                        Created:
-                        {' '}
-                        {formatDate(selectedNote.createdAt)}
-                      </span>
-                      <span className="hidden sm:inline">•</span>
-                      <span className="whitespace-nowrap">
-                        Updated:
-                        {' '}
-                        {formatDate(selectedNote.updatedAt)}
-                      </span>
-                      {Object.keys(pendingChanges).length > 0 && (
-                        <>
-                          <span className="hidden sm:inline">•</span>
-                          <span className="text-blue-600 dark:text-blue-400 whitespace-nowrap">Saving...</span>
-                        </>
-                      )}
-                    </div>
-                    <CopyButton
-                      content={pendingChanges.content ?? selectedNote.content}
-                      size="sm"
-                      variant="text"
-                    />
-                  </div>
-                </div>
-
-                {/* Mobile Tags */}
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 lg:hidden">
-                  <TagInput
-                    tags={pendingChanges.tags ?? selectedNote.tags}
-                    onChange={updateTags}
-                    suggestions={userTags}
-                    placeholder="Add tags..."
-                  />
-                </div>
-
-                {/* Editor */}
-                <div className="flex-1 p-4 sm:p-6 overflow-hidden">
-                  <RichTextEditor
-                    content={pendingChanges.content ?? selectedNote.content}
-                    onChange={updateContent}
-                    placeholder="Start writing your note..."
-                    className="h-full"
-                    data-onboarding="note-editor"
-                  />
-                </div>
-              </>
-            )
-          : (
-              <>
-                {/* Mobile header when no note selected */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 lg:hidden">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (setAppSidebarOpen) {
-                        setAppSidebarOpen()
-                      }
-                      else {
-                        setNotesSidebarOpen(true)
-                      }
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    <Bars3Icon className="h-5 w-5" />
-                    <span className="text-sm font-medium">Menu</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleCreateNote()}
-                    disabled={isCreating}
-                    className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                  >
-                    <PlusIcon className="h-5 w-5" />
-                  </button>
-                </div>
-
-                {/* Empty state */}
-                <div className="flex-1 flex items-center justify-center text-center p-4">
-                  <div className="max-w-sm">
-                    <div className="text-4xl sm:text-6xl mb-4">📝</div>
-                    <h3 className="text-lg sm:text-xl font-medium text-gray-900 dark:text-white mb-2">
-                      Select a note to start editing
-                    </h3>
-                    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">
-                      Choose a note from the sidebar or create a new one
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                      <button
-                        type="button"
-                        onClick={() => setNotesSidebarOpen(true)}
-                        className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors lg:hidden"
-                      >
-                        Browse Notes
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleCreateNote()}
-                        disabled={isCreating}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                      >
-                        Create New Note
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-      </div>
-
-      {/* Delete Confirmation Modal */}
+    <>
+      <TwoColumnLayout
+        sidebarContent={sidebarContent}
+        mainContent={mainContent}
+        pageTitle="Notes"
+      />
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Delete Note
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Are you sure you want to delete this note? This action cannot be undone.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(null)}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors order-2 sm:order-1"
-              >
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl">
+            <h3 className="text-lg font-semibold mb-4">Delete Note</h3>
+            <p className="mb-6">Are you sure you want to delete this note?</p>
+            <div className="flex gap-3 justify-end">
+              <button type="button" onClick={() => setShowDeleteConfirm(null)} className="px-4 py-2 rounded-lg">
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => handleDeleteNote(showDeleteConfirm)}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors order-1 sm:order-2"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg"
               >
                 Delete
               </button>
@@ -618,6 +196,164 @@ export function NotesPage({ setSidebarOpen: setAppSidebarOpen }: NotesPageProps 
           </div>
         </div>
       )}
+    </>
+  )
+}
+
+function SidebarContent({
+  filteredNotes,
+  handleCreateNote,
+  searchNotes,
+  t,
+  filterConfigs,
+  activeFilters,
+  handleFilterChange,
+  clearAllFilters,
+  selectNote,
+  setSidebarOpen,
+  selectedNote,
+  formatDate,
+}) {
+  return (
+    <div className="h-full flex flex-col">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <h2 className="text-lg font-semibold">Notes</h2>
+        <p className="text-sm text-gray-500">
+          {filteredNotes?.length || 0}
+          {' '}
+          notes
+        </p>
+      </div>
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <button
+          type="button"
+          onClick={handleCreateNote}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+        >
+          <PlusIcon className="h-5 w-5" />
+          Create Note
+        </button>
+      </div>
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-4">
+        <SearchBar value="" onChange={searchNotes} placeholder={t('notes.searchNotes')} />
+        <FilterBar
+          filters={filterConfigs}
+          activeFilters={activeFilters}
+          onFilterChange={handleFilterChange}
+          onClearAll={clearAllFilters}
+        />
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {filteredNotes?.length === 0
+          ? (
+              <div className="p-6 text-center">
+                <h3 className="text-lg font-medium">No notes found</h3>
+                <p className="text-sm text-gray-500">Try adjusting your filters or creating a new note.</p>
+              </div>
+            )
+          : (
+              <div className="space-y-2 p-2">
+                {filteredNotes?.map(note => (
+                  <div
+                    key={note._id}
+                    onClick={() => {
+                      selectNote(note._id)
+                      if (setSidebarOpen)
+                        setSidebarOpen(false)
+                    }}
+                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                      selectedNote?._id === note._id
+                        ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <h4 className="font-medium truncate">{note.title || 'Untitled Note'}</h4>
+                    <p className="text-sm text-gray-500 truncate">{note.content.replace(/<[^>]*>/g, '')}</p>
+                    <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
+                      <span>{formatDate(note.updatedAt)}</span>
+                      <div className="flex gap-1">
+                        {note.tags?.slice(0, 2).map(t => (
+                          <span key={t} className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-600 rounded-full">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+      </div>
+    </div>
+  )
+}
+
+function MainContent({
+  selectedNote,
+  pendingChanges,
+  setPendingChanges,
+  handleTogglePin,
+  setShowDeleteConfirm,
+  userTags,
+  formatDate,
+}) {
+  const note = selectedNote ? { ...selectedNote, ...pendingChanges } : null
+  if (!note) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="text-center">
+          <h3 className="text-xl font-medium">Select a note</h3>
+          <p className="text-gray-500">Choose a note from the list to view its details.</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex-1 flex flex-col h-full min-w-0">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <input
+          type="text"
+          value={note.title}
+          onChange={e => setPendingChanges(p => ({ ...p, title: e.target.value }))}
+          className="text-lg font-semibold bg-transparent w-full focus:outline-none"
+          placeholder="Note title"
+        />
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => handleTogglePin(note._id)} className="p-2 text-gray-400 hover:text-yellow-500">
+            {note.pinned
+              ? (
+                  <StarIconSolid className="h-5 w-5 text-yellow-500" />
+                )
+              : (
+                  <StarIcon className="h-5 w-5" />
+                )}
+          </button>
+          <button type="button" onClick={() => setShowDeleteConfirm(note._id)} className="p-2 text-gray-400 hover:text-red-500">
+            <TrashIcon className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <TagInput
+          tags={note.tags || []}
+          onChange={tags => setPendingChanges(p => ({ ...p, tags }))}
+          suggestions={userTags}
+        />
+      </div>
+      <div className="flex-1 p-4 overflow-y-auto">
+        <RichTextEditor
+          content={note.content}
+          onChange={content => setPendingChanges(p => ({ ...p, content }))}
+        />
+      </div>
+      <div className="p-4 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500">
+        <ClockIcon className="h-4 w-4 inline-block mr-1" />
+        Last updated:
+        {' '}
+        {formatDate(note.updatedAt)}
+        {Object.keys(pendingChanges).length > 0 && <span className="ml-2 text-blue-500">Saving...</span>}
+      </div>
     </div>
   )
 }

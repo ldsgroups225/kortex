@@ -7,9 +7,14 @@ import { mutation, query } from './_generated/server'
  * This includes todos created by the user and todos assigned to the user
  */
 export const getTodos = query({
-  args: {},
+  args: {
+    paginationOpts: v.optional(v.object({
+      cursor: v.optional(v.string()),
+      numItems: v.optional(v.number()),
+    })),
+  },
   returns: v.object({
-    todo: v.array(v.object({
+    todos: v.array(v.object({
       _id: v.id('todos'),
       _creationTime: v.number(),
       userId: v.id('users'),
@@ -32,118 +37,27 @@ export const getTodos = query({
       createdAt: v.optional(v.number()),
       updatedAt: v.optional(v.number()),
     })),
-    inProgress: v.array(v.object({
-      _id: v.id('todos'),
-      _creationTime: v.number(),
-      userId: v.id('users'),
-      title: v.string(),
-      description: v.optional(v.string()),
-      status: v.union(v.literal('todo'), v.literal('in_progress'), v.literal('done')),
-      tags: v.array(v.string()),
-      assignedToUserId: v.optional(v.id('users')),
-      assignedToUser: v.optional(v.object({
-        _id: v.id('users'),
-        name: v.optional(v.string()),
-        email: v.optional(v.string()),
-      })),
-      createdByUser: v.object({
-        _id: v.id('users'),
-        name: v.optional(v.string()),
-        email: v.optional(v.string()),
-      }),
-      dueDate: v.optional(v.number()),
-      createdAt: v.optional(v.number()),
-      updatedAt: v.optional(v.number()),
-    })),
-    done: v.array(v.object({
-      _id: v.id('todos'),
-      _creationTime: v.number(),
-      userId: v.id('users'),
-      title: v.string(),
-      description: v.optional(v.string()),
-      status: v.union(v.literal('todo'), v.literal('in_progress'), v.literal('done')),
-      tags: v.array(v.string()),
-      assignedToUserId: v.optional(v.id('users')),
-      assignedToUser: v.optional(v.object({
-        _id: v.id('users'),
-        name: v.optional(v.string()),
-        email: v.optional(v.string()),
-      })),
-      createdByUser: v.object({
-        _id: v.id('users'),
-        name: v.optional(v.string()),
-        email: v.optional(v.string()),
-      }),
-      dueDate: v.optional(v.number()),
-      createdAt: v.optional(v.number()),
-      updatedAt: v.optional(v.number()),
-    })),
+    isDone: v.boolean(),
+    cursor: v.string(),
   }),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
       throw new Error('Not authenticated')
     }
 
-    // Get todos created by the user or assigned to the user
-    const [todosByUser, todosByAssignment, inProgressByUser, inProgressByAssignment, doneByUser, doneByAssignment] = await Promise.all([
-      // Todos created by user
-      ctx.db
-        .query('todos')
-        .withIndex('by_user_and_status', q =>
-          q.eq('userId', userId).eq('status', 'todo'))
-        .order('asc')
-        .collect(),
-      // Todos assigned to user
-      ctx.db
-        .query('todos')
-        .withIndex('by_assigned_user_and_status', q =>
-          q.eq('assignedToUserId', userId).eq('status', 'todo'))
-        .order('asc')
-        .collect(),
-      // In progress created by user
-      ctx.db
-        .query('todos')
-        .withIndex('by_user_and_status', q =>
-          q.eq('userId', userId).eq('status', 'in_progress'))
-        .order('asc')
-        .collect(),
-      // In progress assigned to user
-      ctx.db
-        .query('todos')
-        .withIndex('by_assigned_user_and_status', q =>
-          q.eq('assignedToUserId', userId).eq('status', 'in_progress'))
-        .order('asc')
-        .collect(),
-      // Done created by user
-      ctx.db
-        .query('todos')
-        .withIndex('by_user_and_status', q =>
-          q.eq('userId', userId).eq('status', 'done'))
-        .order('asc')
-        .collect(),
-      // Done assigned to user
-      ctx.db
-        .query('todos')
-        .withIndex('by_assigned_user_and_status', q =>
-          q.eq('assignedToUserId', userId).eq('status', 'done'))
-        .order('asc')
-        .collect(),
-    ])
-
-    // Combine and deduplicate todos (in case user created and assigned to themselves)
-    const allTodos = [
-      ...todosByUser,
-      ...todosByAssignment.filter(t => !todosByUser.some(ut => ut._id === t._id)),
-      ...inProgressByUser,
-      ...inProgressByAssignment.filter(t => !inProgressByUser.some(ut => ut._id === t._id)),
-      ...doneByUser,
-      ...doneByAssignment.filter(t => !doneByUser.some(ut => ut._id === t._id)),
-    ]
+    const { results: todos, isDone, cursor } = await ctx.db
+      .query('todos')
+      .withIndex('by_involved_users', q => q.eq('involvedUsers', userId))
+      .order('desc')
+      .paginate({
+        cursor: args.paginationOpts?.cursor ?? null,
+        numItems: args.paginationOpts?.numItems ?? 10,
+      })
 
     // Get all unique user IDs to fetch user details
     const userIds = new Set<string>()
-    allTodos.forEach((todo) => {
+    todos.forEach((todo) => {
       userIds.add(todo.userId)
       if (todo.assignedToUserId) {
         userIds.add(todo.assignedToUserId)
@@ -188,14 +102,13 @@ export const getTodos = query({
       }
     }
 
-    const todo = [...todosByUser, ...todosByAssignment.filter(t => !todosByUser.some(ut => ut._id === t._id))]
-      .map(transformTodo)
-    const inProgress = [...inProgressByUser, ...inProgressByAssignment.filter(t => !inProgressByUser.some(ut => ut._id === t._id))]
-      .map(transformTodo)
-    const done = [...doneByUser, ...doneByAssignment.filter(t => !doneByUser.some(ut => ut._id === t._id))]
-      .map(transformTodo)
+    const transformedTodos = todos.map(transformTodo)
 
-    return { todo, inProgress, done }
+    return {
+      todos: transformedTodos,
+      isDone,
+      cursor,
+    }
   },
 })
 
@@ -219,7 +132,12 @@ export const createTodo = mutation({
 
     const now = Date.now()
 
-    return await ctx.db.insert('todos', {
+    const involvedUsers = [userId]
+    if (args.assignedToUserId) {
+      involvedUsers.push(args.assignedToUserId)
+    }
+
+    const todoId = await ctx.db.insert('todos', {
       userId,
       title: args.title,
       description: args.description,
@@ -229,7 +147,22 @@ export const createTodo = mutation({
       dueDate: args.dueDate,
       createdAt: now,
       updatedAt: now,
+      involvedUsers,
     })
+
+    // Update stats
+    const counter = await ctx.db
+      .query('stats')
+      .withIndex('by_name', q => q.eq('name', 'totalTodos'))
+      .first()
+    if (counter) {
+      await ctx.db.patch(counter._id, { count: counter.count + 1 })
+    }
+    else {
+      await ctx.db.insert('stats', { name: 'totalTodos', count: 1 })
+    }
+
+    return todoId
   },
 })
 
@@ -291,6 +224,14 @@ export const updateTodo = mutation({
     if (args.dueDate !== undefined)
       updates.dueDate = args.dueDate
 
+    if (args.assignedToUserId !== undefined) {
+      const involvedUsers = [todo.userId]
+      if (args.assignedToUserId) {
+        involvedUsers.push(args.assignedToUserId)
+      }
+      updates.involvedUsers = involvedUsers
+    }
+
     await ctx.db.patch(args.id, updates)
     return null
   },
@@ -317,6 +258,16 @@ export const deleteTodo = mutation({
     }
 
     await ctx.db.delete(args.id)
+
+    // Update stats
+    const counter = await ctx.db
+      .query('stats')
+      .withIndex('by_name', q => q.eq('name', 'totalTodos'))
+      .first()
+    if (counter) {
+      await ctx.db.patch(counter._id, { count: counter.count - 1 })
+    }
+
     return null
   },
 })
