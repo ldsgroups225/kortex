@@ -39,7 +39,7 @@ export function DataPortability() {
   // Queries
   const notes = useQuery(api.notes.getUserNotes) || []
   const snippets = useQuery(api.snippets.getUserSnippets, {}) || []
-  const todos = useQuery(api.todos.getTodos)
+  const todos = useQuery(api.todos.getTodos, {})
 
   const handleExportNotes = async (format: 'markdown' | 'json') => {
     setIsExporting(true)

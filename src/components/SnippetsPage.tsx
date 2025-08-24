@@ -1,3 +1,4 @@
+import type { OfflineSnippet } from '../lib/useOfflineSnippets'
 import type { FilterConfig } from './FilterBar'
 import {
   ClockIcon,
@@ -192,6 +193,7 @@ export function SnippetsPage() {
       handleFilterChange={handleFilterChange}
       clearAllFilters={clearAllFilters}
       selectSnippet={selectSnippet}
+      setSidebarOpen={() => {}}
       selectedSnippet={selectedSnippet?._id}
       getLanguageStyle={getLanguageStyle}
     />
@@ -253,6 +255,19 @@ function SidebarContent({
   setSidebarOpen,
   selectedSnippet,
   getLanguageStyle,
+}: {
+  filteredSnippets: OfflineSnippet[]
+  handleCreateSnippet: () => Promise<void>
+  searchSnippets: (query: string) => void
+  t: (key: string, options?: Record<string, unknown>) => string
+  filterConfigs: FilterConfig[]
+  activeFilters: Record<string, string | string[]>
+  handleFilterChange: (key: string, value: string | string[]) => void
+  clearAllFilters: () => void
+  selectSnippet: (snippetId: string | null) => void
+  setSidebarOpen: (open: boolean) => void
+  selectedSnippet: string | undefined
+  getLanguageStyle: (language?: string) => string
 }) {
   return (
     <div className="h-full flex flex-col">
@@ -293,7 +308,7 @@ function SidebarContent({
             )
           : (
               <div className="space-y-2 p-2">
-                {filteredSnippets?.map(snippet => (
+                {filteredSnippets?.map((snippet: OfflineSnippet) => (
                   <div
                     key={snippet._id}
                     onClick={() => {
@@ -334,6 +349,14 @@ function MainContent({
   setShowDeleteConfirm,
   allCategories,
   setPendingChanges,
+}: {
+  selectedSnippetData: OfflineSnippet | null
+  getLanguageStyle: (language?: string) => string
+  formatDate: (timestamp: number) => string
+  handleTogglePin: (snippetId: string) => Promise<void>
+  setShowDeleteConfirm: (snippetId: string | null) => void
+  allCategories: string[]
+  setPendingChanges: (changes: (prev: Partial<OfflineSnippet>) => Partial<OfflineSnippet>) => void
 }) {
   if (!selectedSnippetData) {
     return (
@@ -353,14 +376,14 @@ function MainContent({
             <input
               type="text"
               value={selectedSnippetData.title}
-              onChange={e => setPendingChanges(p => ({ ...p, title: e.target.value }))}
+              onChange={e => setPendingChanges((p: Partial<OfflineSnippet>) => ({ ...p, title: e.target.value }))}
               className="text-xl font-semibold bg-transparent w-full focus:outline-none"
               placeholder="Snippet title"
             />
             <div className="flex items-center gap-2 flex-wrap mt-2">
               <select
                 value={selectedSnippetData.language}
-                onChange={e => setPendingChanges(p => ({ ...p, language: e.target.value }))}
+                onChange={e => setPendingChanges((p: Partial<OfflineSnippet>) => ({ ...p, language: e.target.value }))}
                 className={`text-sm px-3 py-1 rounded-full focus:outline-none appearance-none ${getLanguageStyle(
                   selectedSnippetData.language,
                 )}`}
@@ -373,10 +396,10 @@ function MainContent({
               </select>
               <select
                 value={selectedSnippetData.category}
-                onChange={e => setPendingChanges(p => ({ ...p, category: e.target.value }))}
+                onChange={e => setPendingChanges((p: Partial<OfflineSnippet>) => ({ ...p, category: e.target.value }))}
                 className="text-sm px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center gap-1 focus:outline-none appearance-none"
               >
-                {allCategories.map(cat => (
+                {allCategories.map((cat: string) => (
                   <option key={cat} value={cat}>
                     {cat}
                   </option>
@@ -391,7 +414,7 @@ function MainContent({
           <div className="p-6">
             <textarea
               value={selectedSnippetData.content}
-              onChange={e => setPendingChanges(p => ({ ...p, content: e.target.value }))}
+              onChange={e => setPendingChanges((p: Partial<OfflineSnippet>) => ({ ...p, content: e.target.value }))}
               placeholder="Snippet content..."
               rows={15}
               className="w-full p-2 border rounded font-mono text-sm bg-gray-900 text-gray-100"

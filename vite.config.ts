@@ -17,7 +17,8 @@ export default defineConfig(({ mode }) => ({
       devOptions: { enabled: mode === 'development' },
       injectRegister: 'auto',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // Skip precaching in development to avoid glob pattern warnings
+        globPatterns: mode === 'development' ? [] : ['**/*.{js,wasm,css,html,ico,png,svg}'],
         navigateFallback: '/offline.html',
         navigateFallbackDenylist: [
           /^\/_/, // API routes
@@ -25,8 +26,6 @@ export default defineConfig(({ mode }) => ({
           /^\/sw\.js$/, // Service worker file
           /^\/workbox-.*\.js$/, // Workbox files
         ],
-        // Skip precaching in development to avoid glob pattern warnings
-        globPatterns: mode === 'development' ? [] : ['**/*.{js,wasm,css,html}'],
         // Don't cache the main document during updates
         navigateFallbackAllowlist: [/^(?!\/__).*/], // Allow fallback except for special routes
         runtimeCaching: [
@@ -48,7 +47,7 @@ export default defineConfig(({ mode }) => ({
           {
             urlPattern: ({ request }) => request.destination === 'document',
             handler: 'NetworkFirst',
-            options: { 
+            options: {
               cacheName: 'pages',
               networkTimeoutSeconds: 3,
             },

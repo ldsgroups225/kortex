@@ -198,7 +198,7 @@ export function useOfflineTodos() {
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
 
   // Convex queries and mutations
-  const convexTodos = useQuery(api.todos.getTodos)
+  const convexTodos = useQuery(api.todos.getTodos, {})
   const currentUser = useQuery(api.users.getCurrentUser)
   const createTodoMutation = useMutation(api.todos.createTodo)
   const updateTodoMutation = useMutation(api.todos.updateTodo)

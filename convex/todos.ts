@@ -7,14 +7,55 @@ import { mutation, query } from './_generated/server'
  * This includes todos created by the user and todos assigned to the user
  */
 export const getTodos = query({
-  args: {
-    paginationOpts: v.optional(v.object({
-      cursor: v.optional(v.string()),
-      numItems: v.optional(v.number()),
-    })),
-  },
+  args: {},
   returns: v.object({
-    todos: v.array(v.object({
+    todo: v.array(v.object({
+      _id: v.id('todos'),
+      _creationTime: v.number(),
+      userId: v.id('users'),
+      title: v.string(),
+      description: v.optional(v.string()),
+      status: v.union(v.literal('todo'), v.literal('in_progress'), v.literal('done')),
+      tags: v.array(v.string()),
+      assignedToUserId: v.optional(v.id('users')),
+      assignedToUser: v.optional(v.object({
+        _id: v.id('users'),
+        name: v.optional(v.string()),
+        email: v.optional(v.string()),
+      })),
+      createdByUser: v.object({
+        _id: v.id('users'),
+        name: v.optional(v.string()),
+        email: v.optional(v.string()),
+      }),
+      dueDate: v.optional(v.number()),
+      createdAt: v.optional(v.number()),
+      updatedAt: v.optional(v.number()),
+    })),
+    inProgress: v.array(v.object({
+      _id: v.id('todos'),
+      _creationTime: v.number(),
+      userId: v.id('users'),
+      title: v.string(),
+      description: v.optional(v.string()),
+      status: v.union(v.literal('todo'), v.literal('in_progress'), v.literal('done')),
+      tags: v.array(v.string()),
+      assignedToUserId: v.optional(v.id('users')),
+      assignedToUser: v.optional(v.object({
+        _id: v.id('users'),
+        name: v.optional(v.string()),
+        email: v.optional(v.string()),
+      })),
+      createdByUser: v.object({
+        _id: v.id('users'),
+        name: v.optional(v.string()),
+        email: v.optional(v.string()),
+      }),
+      dueDate: v.optional(v.number()),
+      createdAt: v.optional(v.number()),
+      updatedAt: v.optional(v.number()),
+    })),
+    done: v.array(v.object({
       _id: v.id('todos'),
       _creationTime: v.number(),
       userId: v.id('users'),
@@ -38,26 +79,36 @@ export const getTodos = query({
       updatedAt: v.optional(v.number()),
     })),
     isDone: v.boolean(),
-    cursor: v.string(),
+    cursor: v.union(v.string(), v.id('todos')),
   }),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
       throw new Error('Not authenticated')
     }
 
-    const { results: todos, isDone, cursor } = await ctx.db
+    // Get todos where user is creator or assigned
+    const createdTodos = await ctx.db
       .query('todos')
-      .withIndex('by_involved_users', q => q.eq('involvedUsers', userId))
-      .order('desc')
-      .paginate({
-        cursor: args.paginationOpts?.cursor ?? null,
-        numItems: args.paginationOpts?.numItems ?? 10,
-      })
+      .withIndex('by_user', q => q.eq('userId', userId))
+      .collect()
+
+    const assignedTodos = await ctx.db
+      .query('todos')
+      .withIndex('by_assigned_user', q => q.eq('assignedToUserId', userId))
+      .collect()
+
+    // Combine and deduplicate todos
+    const allTodosMap = new Map()
+    createdTodos.forEach(todo => allTodosMap.set(todo._id, todo))
+    assignedTodos.forEach(todo => allTodosMap.set(todo._id, todo))
+
+    const allTodos = Array.from(allTodosMap.values())
+      .sort((a, b) => b._creationTime - a._creationTime)
 
     // Get all unique user IDs to fetch user details
     const userIds = new Set<string>()
-    todos.forEach((todo) => {
+    allTodos.forEach((todo) => {
       userIds.add(todo.userId)
       if (todo.assignedToUserId) {
         userIds.add(todo.assignedToUserId)
@@ -66,12 +117,7 @@ export const getTodos = query({
 
     // Fetch user details with proper typing
     const userPromises = Array.from(userIds).map(async (id) => {
-      const doc = await ctx.db.get(id as any)
-      // Type guard to ensure we only process user documents
-      if (doc && '_id' in doc && typeof doc._id === 'string' && doc._id.startsWith('users')) {
-        return doc as { _id: any, name?: string, email?: string, [key: string]: any }
-      }
-      return null
+      return await ctx.db.get(id as any)
     })
 
     const users = await Promise.all(userPromises)
@@ -89,25 +135,32 @@ export const getTodos = query({
         tags: todo.tags || [], // Provide default empty array for existing todos without tags
         createdByUser: {
           _id: createdByUser?._id || todo.userId,
-          name: createdByUser?.name || undefined,
-          email: createdByUser?.email || undefined,
+          name: (createdByUser as any)?.name || undefined,
+          email: (createdByUser as any)?.email || undefined,
         },
         assignedToUser: assignedToUser
           ? {
               _id: assignedToUser._id,
-              name: assignedToUser.name || undefined,
-              email: assignedToUser.email || undefined,
+              name: (assignedToUser as any)?.name || undefined,
+              email: (assignedToUser as any)?.email || undefined,
             }
           : undefined,
       }
     }
 
-    const transformedTodos = todos.map(transformTodo)
+    const transformedTodos = allTodos.map(transformTodo)
+
+    // Group todos by status
+    const todo = transformedTodos.filter(t => t.status === 'todo')
+    const inProgress = transformedTodos.filter(t => t.status === 'in_progress')
+    const done = transformedTodos.filter(t => t.status === 'done')
 
     return {
-      todos: transformedTodos,
-      isDone,
-      cursor,
+      todo,
+      inProgress,
+      done,
+      isDone: true,
+      cursor: '',
     }
   },
 })

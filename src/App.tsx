@@ -15,6 +15,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Toaster } from 'sonner'
 import { api } from '../convex/_generated/api'
+import { I18nProvider } from './components/I18nProvider'
 import { KeyboardShortcuts } from './components/KeyboardShortcuts'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
 import { OfflineStatus, OfflineStatusIndicator, PwaStatusBadge } from './components/OfflineStatus'
@@ -110,34 +111,36 @@ export default function App() {
   }
 
   return (
-    <OnboardingProvider>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-        <KeyboardShortcuts
-          onCopyLastSelected={handleCopyLastSelected}
-          onCreateNote={handleCreateNote}
-          onFocusSearch={handleFocusSearch}
-        />
-        <Authenticated>
-          <AuthenticatedApp
-            currentRoute={currentRoute}
-            setCurrentRoute={setCurrentRoute}
-            sidebarOpen={sidebarOpen}
-            setSidebarOpen={setSidebarOpen}
-            darkMode={darkMode}
-            toggleDarkMode={toggleDarkMode}
-            searchRef={searchRef}
+    <I18nProvider>
+      <OnboardingProvider>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+          <KeyboardShortcuts
+            onCopyLastSelected={handleCopyLastSelected}
+            onCreateNote={handleCreateNote}
+            onFocusSearch={handleFocusSearch}
           />
-          <OnboardingTooltip />
-          <PwaInstallPrompt />
-        </Authenticated>
+          <Authenticated>
+            <AuthenticatedApp
+              currentRoute={currentRoute}
+              setCurrentRoute={setCurrentRoute}
+              sidebarOpen={sidebarOpen}
+              setSidebarOpen={setSidebarOpen}
+              darkMode={darkMode}
+              toggleDarkMode={toggleDarkMode}
+              searchRef={searchRef}
+            />
+            <OnboardingTooltip />
+            <PwaInstallPrompt />
+          </Authenticated>
 
-        <Unauthenticated>
-          <UnauthenticatedApp darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-          <PwaInstallPrompt />
-        </Unauthenticated>
-      </div>
-      <Toaster richColors position="top-right" theme={darkMode ? 'dark' : 'light'} />
-    </OnboardingProvider>
+          <Unauthenticated>
+            <UnauthenticatedApp darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+            <PwaInstallPrompt />
+          </Unauthenticated>
+        </div>
+        <Toaster richColors position="top-right" theme={darkMode ? 'dark' : 'light'} />
+      </OnboardingProvider>
+    </I18nProvider>
   )
 }
 
@@ -598,7 +601,7 @@ function DashboardPage() {
   const { t } = useTranslation()
   const notes = useQuery(api.notes.getUserNotes)
   const snippets = useQuery(api.snippets.getUserSnippets, {})
-  const todos = useQuery(api.todos.getTodos)
+  const todos = useQuery(api.todos.getTodos, {})
 
   return (
     <div className="space-y-6">
@@ -638,7 +641,7 @@ function DashboardPage() {
             </div>
             <div className="ml-4">
               <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {todos ? (todos.todo.length + todos.inProgress.length + todos.done.length) : 0}
+                {todos ? (todos.todo?.length || 0) + (todos.inProgress?.length || 0) + (todos.done?.length || 0) : 0}
               </div>
               <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('navigation.todos')}</h3>
             </div>
@@ -714,9 +717,10 @@ function DashboardPage() {
             ? (
                 <div className="space-y-2">
                   {[...todos.todo, ...todos.inProgress]
-                    .sort((a, b) => b._creationTime - a._creationTime)
+                    .filter((todo: any) => todo.status !== 'done')
+                    .sort((a: any, b: any) => b._creationTime - a._creationTime)
                     .slice(0, 5)
-                    .map(todo => (
+                    .map((todo: any) => (
                       <div key={todo._id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-600/50 rounded-md transition-colors cursor-pointer">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">

@@ -1,3 +1,4 @@
+import type { OfflineNote } from '../lib/useOfflineNotes'
 import type { FilterConfig } from './FilterBar'
 import { ClockIcon, PlusIcon, StarIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
@@ -66,7 +67,7 @@ export function NotesPage() {
   const filteredNotes = useMemo(() => {
     let filtered = notes || []
     if (activeFilters.tags && Array.isArray(activeFilters.tags) && activeFilters.tags.length > 0) {
-      filtered = filtered.filter(n => n.tags && activeFilters.tags.every(t => n.tags.includes(t as string)))
+      filtered = filtered.filter(n => n.tags && (activeFilters.tags as string[]).every((t: string) => n.tags.includes(t)))
     }
     if (activeFilters.pinned === 'pinned') {
       filtered = filtered.filter(n => n.pinned)
@@ -152,6 +153,7 @@ export function NotesPage() {
       handleFilterChange={handleFilterChange}
       clearAllFilters={clearAllFilters}
       selectNote={selectNote}
+      setSidebarOpen={() => {}}
       selectedNote={selectedNote}
       formatDate={formatDate}
     />
@@ -213,6 +215,19 @@ function SidebarContent({
   setSidebarOpen,
   selectedNote,
   formatDate,
+}: {
+  filteredNotes: OfflineNote[]
+  handleCreateNote: () => Promise<void>
+  searchNotes: (query: string) => void
+  t: (key: string, options?: Record<string, unknown>) => string
+  filterConfigs: FilterConfig[]
+  activeFilters: Record<string, string | string[]>
+  handleFilterChange: (key: string, value: string | string[]) => void
+  clearAllFilters: () => void
+  selectNote: (noteId: string | null) => void
+  setSidebarOpen: (open: boolean) => void
+  selectedNote: OfflineNote | null
+  formatDate: (timestamp: number) => string
 }) {
   return (
     <div className="h-full flex flex-col">
@@ -253,7 +268,7 @@ function SidebarContent({
             )
           : (
               <div className="space-y-2 p-2">
-                {filteredNotes?.map(note => (
+                {filteredNotes?.map((note: OfflineNote) => (
                   <div
                     key={note._id}
                     onClick={() => {
@@ -272,7 +287,7 @@ function SidebarContent({
                     <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
                       <span>{formatDate(note.updatedAt)}</span>
                       <div className="flex gap-1">
-                        {note.tags?.slice(0, 2).map(t => (
+                        {note.tags?.slice(0, 2).map((t: string) => (
                           <span key={t} className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-600 rounded-full">
                             {t}
                           </span>
@@ -296,6 +311,14 @@ function MainContent({
   setShowDeleteConfirm,
   userTags,
   formatDate,
+}: {
+  selectedNote: OfflineNote | null
+  pendingChanges: Partial<OfflineNote>
+  setPendingChanges: (changes: (prev: Partial<OfflineNote>) => Partial<OfflineNote>) => void
+  handleTogglePin: (noteId: string) => Promise<void>
+  setShowDeleteConfirm: (noteId: string | null) => void
+  userTags: string[]
+  formatDate: (timestamp: number) => string
 }) {
   const note = selectedNote ? { ...selectedNote, ...pendingChanges } : null
   if (!note) {
@@ -315,7 +338,7 @@ function MainContent({
         <input
           type="text"
           value={note.title}
-          onChange={e => setPendingChanges(p => ({ ...p, title: e.target.value }))}
+          onChange={e => setPendingChanges((p: Partial<OfflineNote>) => ({ ...p, title: e.target.value }))}
           className="text-lg font-semibold bg-transparent w-full focus:outline-none"
           placeholder="Note title"
         />
@@ -337,14 +360,14 @@ function MainContent({
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <TagInput
           tags={note.tags || []}
-          onChange={tags => setPendingChanges(p => ({ ...p, tags }))}
+          onChange={tags => setPendingChanges((p: Partial<OfflineNote>) => ({ ...p, tags }))}
           suggestions={userTags}
         />
       </div>
       <div className="flex-1 p-4 overflow-y-auto">
         <RichTextEditor
           content={note.content}
-          onChange={content => setPendingChanges(p => ({ ...p, content }))}
+          onChange={content => setPendingChanges((p: Partial<OfflineNote>) => ({ ...p, content }))}
         />
       </div>
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500">

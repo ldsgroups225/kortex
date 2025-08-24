@@ -1,28 +1,22 @@
 {
   "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    "target": "ES2020",
+    "composite": true,
+    "target": "ESNext",
     "jsx": "react-jsx",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "moduleDetection": "force",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "useDefineForClassFields": true,
+    "baseUrl": ".",
     "module": "ESNext",
-
-    /* Bundler mode */
     "moduleResolution": "bundler",
-
-    /* Import paths */
     "paths": {
       "@/*": ["./src/*"]
     },
+    "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
-    /* Linting */
     "strict": true,
-    "noFallthroughCasesInSwitch": true,
     "noEmit": true,
     "isolatedModules": true,
-    "skipLibCheck": true,
-    "noUncheckedSideEffectImports": true
+    "skipLibCheck": true
   },
-  "include": ["src"]
+  "include": ["src", "convex"]
 }

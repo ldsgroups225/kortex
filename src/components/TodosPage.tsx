@@ -13,7 +13,7 @@ import {
   TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
-import { useMutation, usePaginatedQuery, useQuery } from 'convex/react'
+import { useMutation, useQuery } from 'convex/react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -46,7 +46,7 @@ function TodoCard({
   currentUser,
   handleSaveEdit,
   setEditingTodo,
-  _toggleTodoStatus,
+  toggleTodoStatus,
   handleEditTodo,
   handleDeleteTodo,
   handleDragStart,
@@ -291,7 +291,7 @@ function TodoCard({
                   <button
                     type="button"
                     onClick={() => {
-                      void handleDeleteTodo(todo._id || todo.tempId)
+                      void handleDeleteTodo((todo._id || todo.tempId) as Id<'todos'>)
                     }}
                     className="p-1 text-gray-400 hover:text-red-500 transition-colors"
                     disabled={todo.sending}
@@ -486,15 +486,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
   const { t } = useTranslation()
 
   // Use paginated query for online-first todos
-  const {
-    results: todos,
-    status: paginationStatus,
-    loadMore,
-  } = usePaginatedQuery(
-    api.todos.getTodos,
-    {},
-    { initialNumItems: 20 },
-  )
+  const todos = useQuery(api.todos.getTodos, {})
   const createTodo = useMutation(api.todos.createTodo)
   const updateTodo = useMutation(api.todos.updateTodo)
   const deleteTodo = useMutation(api.todos.deleteTodo)
@@ -538,12 +530,16 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
 
   // Filter and search logic with online todos
   const getFilteredTodos = () => {
-    let filtered = todos || []
+    if (!todos)
+      return { todo: [], inProgress: [], done: [] }
+
+    // Flatten all todos from the grouped structure
+    let filtered = [...todos.todo, ...todos.inProgress, ...todos.done]
 
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(todo =>
+      filtered = filtered.filter((todo: any) =>
         todo.title.toLowerCase().includes(query)
         || (todo.description && todo.description.toLowerCase().includes(query)),
       )
@@ -552,14 +548,14 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
     // Apply status filter
     if (activeFilters.status) {
       const status = activeFilters.status as TodoStatus
-      filtered = filtered.filter(todo => todo.status === status)
+      filtered = filtered.filter((todo: any) => todo.status === status)
     }
 
     // Group by status
     return {
-      todo: filtered.filter(t => t.status === 'todo'),
-      inProgress: filtered.filter(t => t.status === 'in_progress'),
-      done: filtered.filter(t => t.status === 'done'),
+      todo: filtered.filter((t: any) => t.status === 'todo'),
+      inProgress: filtered.filter((t: any) => t.status === 'in_progress'),
+      done: filtered.filter((t: any) => t.status === 'done'),
     }
   }
 
@@ -627,13 +623,13 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
   }
 
   const handleEditTodo = (todo: Todo) => {
-    setEditingTodo(todo._id)
+    setEditingTodo(todo._id as Id<'todos'>)
     setEditTitle(todo.title)
     setEditDescription(todo.description || '')
     setEditStatus(todo.status)
     setEditTags(todo.tags || [])
     setEditDueDate(todo.dueDate ? new Date(todo.dueDate).toISOString().split('T')[0] : '')
-    setEditAssignedTo(todo.assignedToUserId)
+    setEditAssignedTo(todo.assignedToUserId as Id<'users'> | undefined)
   }
 
   const handleSaveEdit = async () => {
@@ -760,7 +756,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
   }
 
   // Show loading only on initial load
-  if (paginationStatus === 'LoadingInitial') {
+  if (!todos) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white" />
@@ -840,10 +836,9 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
                 <button
                   type="button"
                   onClick={() => setMobileView('board')}
-                  className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
-                    mobileView === 'board'
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileView === 'board'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
                   {t('todos.board')}
@@ -851,10 +846,9 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
                 <button
                   type="button"
                   onClick={() => setMobileView('list')}
-                  className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
-                    mobileView === 'list'
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileView === 'list'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
                   {t('todos.list')}
@@ -1036,7 +1030,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
                       </span>
                     </h3>
                     <div className="space-y-2">
-                      {statusTodos.map((todo, index) => (
+                      {statusTodos.map((todo: any, index: number) => (
                         <TodoCard
                           key={todo._id}
                           todo={todo}
@@ -1075,7 +1069,7 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
                       {statusTodos.length === 0 && (
                         <div className="text-center text-gray-500 dark:text-gray-400 py-4">
                           <p className="text-sm">
-                            {t('todos.noTasks', { status: statusLabel.toLowerCase() })}
+                            {t('todos.noTasks', { status: statusLabel?.toLowerCase() || status })}
                           </p>
                         </div>
                       )}
@@ -1117,6 +1111,9 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
               formatDate={formatDate}
               isOverdue={isOverdue}
               handleStartPomodoro={handleStartPomodoro}
+              setEditAssignedTo={() => { }}
+              users={[]}
+              currentUser={null}
               t={t}
             />
             <TodoColumn
@@ -1191,22 +1188,6 @@ export function TodosPage({ setSidebarOpen: setAppSidebarOpen }: TodosPageProps 
             />
           </div>
 
-          {paginationStatus === 'CanLoadMore' && (
-            <div className="text-center mt-4">
-              <button
-                type="button"
-                onClick={() => loadMore(10)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                {t('common.loadMore')}
-              </button>
-            </div>
-          )}
-          {paginationStatus === 'LoadingMore' && (
-            <div className="text-center mt-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white mx-auto" />
-            </div>
-          )}
         </div>
       </div>
     </div>

@@ -108,7 +108,7 @@ const applicationTables = {
     dueDate: v.optional(v.number()),
     createdAt: v.optional(v.number()),
     updatedAt: v.optional(v.number()),
-    involvedUsers: v.array(v.id('users')),
+    involvedUsers: v.optional(v.array(v.id('users'))),
   })
     .index('by_user', ['userId'])
     .index('by_user_and_status', ['userId', 'status'])

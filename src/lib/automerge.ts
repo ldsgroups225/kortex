@@ -134,12 +134,12 @@ export class AutomergeDocumentManager {
   }
 
   // Get changes since a specific state
-  getChangesSince(id: string, heads: Automerge.Heads): Uint8Array | null {
+  getChangesSince(id: string, _heads: Automerge.Heads): Uint8Array | null {
     const doc = this.documents.get(id)
     if (!doc)
       return null
 
-    return Automerge.saveIncremental(doc, heads)
+    return Automerge.saveIncremental(doc)
   }
 
   // Apply changes to a document

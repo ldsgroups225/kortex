@@ -14,6 +14,7 @@ const resources = {
   },
 }
 
+// Initialize i18n synchronously to avoid context issues
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
@@ -21,6 +22,7 @@ i18n
     resources,
     fallbackLng: 'en',
     debug: false,
+    lng: 'en', // Set default language explicitly
 
     detection: {
       order: ['localStorage', 'navigator'],
@@ -30,6 +32,9 @@ i18n
     interpolation: {
       escapeValue: false,
     },
+
+    // Ensure synchronous initialization
+    initImmediate: false,
   })
 
 export default i18n

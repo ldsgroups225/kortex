@@ -231,20 +231,14 @@ export function PwaStatusBadge({ className = '' }: { className?: string }) {
   const {
     offlineReady: [offlineReady],
     needRefresh: [needRefresh],
-    updateServiceWorker,
+    updateServiceWorker: _updateServiceWorker,
   } = useRegisterSW({
-    onRegistered() {
-      console.log('SW Registered')
-    },
+    onRegistered() {},
     onRegisterError(error) {
       console.error('SW registration error', error)
     },
-    onNeedRefresh() {
-      console.log('SW needs refresh')
-    },
-    onOfflineReady() {
-      console.log('SW offline ready')
-    },
+    onNeedRefresh() { },
+    onOfflineReady() {},
   })
 
   // Don't show badge if nothing relevant is happening
