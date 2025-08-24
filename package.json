@@ -8,6 +8,7 @@
     "dev": "npm-run-all --parallel dev:frontend dev:backend",
     "dev:frontend": "vite --open",
     "dev:backend": "convex dev",
+    "dev:clean": "./scripts/dev-clean.sh",
     "build": "vite build",
     "lint:convex": "tsc -b --pretty && convex dev --once && vite build",
     "lint:fix": "eslint . --fix",

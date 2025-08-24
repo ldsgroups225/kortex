@@ -81,7 +81,7 @@ export const getTodos = query({
     isDone: v.boolean(),
     cursor: v.union(v.string(), v.id('todos')),
   }),
-  handler: async (ctx, _args) => {
+  handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
       throw new Error('Not authenticated')

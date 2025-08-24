@@ -14,7 +14,10 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: 'prompt',
       manifest: false, // use external manifest in public/
-      devOptions: { enabled: mode === 'development' },
+      devOptions: { 
+        enabled: false, // Disable PWA in development to avoid conflicts
+        type: 'module'
+      },
       injectRegister: 'auto',
       workbox: {
         // Skip precaching in development to avoid glob pattern warnings
@@ -89,6 +92,13 @@ window.addEventListener('message', async (message) => {
       : null,
     // End of code for taking screenshots on chef.convex.dev.
   ].filter(Boolean),
+  server: {
+    port: 5173,
+    host: true,
+    hmr: {
+      port: 5173,
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
